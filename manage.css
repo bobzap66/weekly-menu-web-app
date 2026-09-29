@@ -45,6 +45,23 @@
   align-items: end;
 }
 
+.list-management-grid {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.8fr) minmax(18rem, 1.4fr);
+  align-items: end;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.create-list-form {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.list-select-field,
+.create-list-form label,
 .admin-form label:not(.checkbox-label),
 .search-field,
 .filter-field,
@@ -56,6 +73,8 @@
   font-weight: 750;
 }
 
+.list-select-field select,
+.create-list-form input,
 .admin-form input,
 .admin-form select,
 .admin-form textarea,
@@ -169,7 +188,8 @@
   background: #faf6ef;
 }
 
-.category-edit-panel[hidden] {
+.category-edit-panel[hidden],
+[data-list-required][hidden] {
   display: none;
 }
 
@@ -291,7 +311,9 @@
 @media (max-width: 720px) {
   .compact-form,
   .admin-form,
-  .category-edit-panel {
+  .category-edit-panel,
+  .list-management-grid,
+  .create-list-form {
     grid-template-columns: 1fr;
   }
 
