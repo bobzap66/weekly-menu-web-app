@@ -9,10 +9,10 @@ import {
 
 function carryoverSuggestion(meal) {
   return {
+    stableId: meal.stableId,
     categoryId: meal.categoryId,
     categoryName: meal.categoryName,
     mealName: meal.mealName,
-    mealKey: meal.mealKey,
     quick: meal.quick === true,
     bigMeal: meal.bigMeal === true,
     recipeUrl: typeof meal.recipeUrl === "string" ? meal.recipeUrl : "",
@@ -74,6 +74,10 @@ export function buildNextWeekSuggestions(
 
   if (!isValidWeekPlan(weekPlan)) {
     throw new Error("Week plan is invalid.");
+  }
+
+  if (carryoverMeals.some((meal) => typeof meal.stableId !== "string" || meal.stableId.length === 0)) {
+    throw new Error("Carryover meals must have stable IDs.");
   }
 
   const targetMealCount = countMealDays(weekPlan);
