@@ -261,6 +261,7 @@ h2 {
 }
 
 .quick-label,
+.big-meal-label,
 .removed-label,
 .carried-over-label,
 .day-type-badge {
@@ -276,6 +277,11 @@ h2 {
 .quick-label {
   color: #315777;
   background: #dceaf5;
+}
+
+.big-meal-label {
+  color: #75451f;
+  background: #f4dfc8;
 }
 
 .removed-label,
@@ -299,7 +305,8 @@ h2 {
 
 .is-rejected .meal-name,
 .is-rejected .category-name,
-.is-rejected .quick-label {
+.is-rejected .quick-label,
+.is-rejected .big-meal-label {
   opacity: 0.48;
 }
 
@@ -388,6 +395,11 @@ h2 {
 .day-type-quick {
   color: #315777;
   background: #dceaf5;
+}
+
+.day-type-big {
+  color: #75451f;
+  background: #f4dfc8;
 }
 
 .day-type-leftovers {
