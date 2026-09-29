@@ -1,15 +1,18 @@
 # Weekly Menu
 
-A dependency-free static web app that recreates the behavior of the original
+A dependency-free static web app that recreates and extends the behavior of the original
 TableMaster `WeeklyMenu.tbl` file.
 
-## MVP behavior
+## Version 0.2 behavior
 
-- Generates ten dinner suggestions.
-- Selects categories and meals according to the original weights.
-- Prevents a category from appearing more than once in a generated menu.
-- Preserves the original 25% conditional modifiers.
-- Generates a fresh menu when **Roll a new menu** is selected.
+- Generates ten weighted dinner suggestions from ten distinct categories.
+- Lets you tap three candidates to remove them from consideration.
+- Automatically promotes the remaining seven dinners to **This Week's Menu**.
+- Saves the current candidates, rejected meals, and final menu in browser `localStorage`.
+- Restores the current week when the page is reopened or refreshed.
+- Lets you reopen the final menu to change your choices.
+- Starts a fresh set of ten candidates only when you explicitly roll again or start next week.
+- Preserves the original weighted categories, weighted meals, and 25% conditional modifiers.
 
 ## Run locally
 
