@@ -13,6 +13,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 import { auth, db } from "./firebase.js";
@@ -36,6 +37,9 @@ const signOutButton = document.querySelector("#sign-out-button");
 const listSelect = document.querySelector("#list-select");
 const createListForm = document.querySelector("#create-list-form");
 const newListName = document.querySelector("#new-list-name");
+const duplicateListForm = document.querySelector("#duplicate-list-form");
+const duplicateListName = document.querySelector("#duplicate-list-name");
+const duplicateListButton = document.querySelector("#duplicate-list-button");
 const listStatus = document.querySelector("#list-status");
 const listNameDisplay = document.querySelector("#active-list-name");
 const listRequiredSections = [...document.querySelectorAll("[data-list-required]")];
@@ -66,6 +70,8 @@ const catalogStatus = document.querySelector("#catalog-status");
 const mealCatalog = document.querySelector("#meal-catalog");
 const mealSearch = document.querySelector("#meal-search");
 
+const COPY_BATCH_SIZE = 400;
+
 let ownedLists = [];
 let activeListId = null;
 let activeListName = "";
@@ -95,6 +101,31 @@ function setListRequiredVisibility(hasList) {
   for (const section of listRequiredSections) section.hidden = !hasList;
 }
 
+function listNameExists(name) {
+  const normalized = name.trim().toLowerCase();
+  return ownedLists.some((list) => String(list.name ?? "").trim().toLowerCase() === normalized);
+}
+
+function nextDuplicateName(name) {
+  const base = `${name || "Meal List"} Copy`;
+  let candidate = base;
+  let suffix = 2;
+
+  while (listNameExists(candidate)) {
+    candidate = `${base} ${suffix}`;
+    suffix += 1;
+  }
+
+  return candidate;
+}
+
+function refreshDuplicateControls() {
+  const hasList = Boolean(activeListId);
+  duplicateListName.disabled = !hasList;
+  duplicateListButton.disabled = !hasList;
+  duplicateListName.value = hasList ? nextDuplicateName(activeListName) : "";
+}
+
 function renderListControls() {
   listSelect.replaceChildren();
 
@@ -106,6 +137,7 @@ function renderListControls() {
     listSelect.disabled = true;
     listNameDisplay.textContent = "None";
     setListRequiredVisibility(false);
+    refreshDuplicateControls();
     return;
   }
 
@@ -121,6 +153,7 @@ function renderListControls() {
   listSelect.value = activeListId ?? ownedLists[0].id;
   listNameDisplay.textContent = activeListName || "None";
   setListRequiredVisibility(Boolean(activeListId));
+  refreshDuplicateControls();
 }
 
 function clearCatalogUi() {
@@ -176,11 +209,42 @@ async function switchToList(id) {
   setStoredActiveList(selected.id, selected.name);
   listNameDisplay.textContent = selected.name;
   setListRequiredVisibility(true);
+  refreshDuplicateControls();
   resetMealForm();
   categoryFilter.value = "";
   mealSearch.value = "";
   await loadCatalog();
   setStatus(listStatus, `Now editing ${selected.name}. The planner will use this list while you are signed in.`);
+}
+
+async function copySnapshotDocuments(destinationListId, categorySnapshot, mealSnapshot) {
+  const writes = [
+    ...categorySnapshot.docs.map((item) => ({ subcollection: "categories", item })),
+    ...mealSnapshot.docs.map((item) => ({ subcollection: "meals", item })),
+  ];
+
+  for (let start = 0; start < writes.length; start += COPY_BATCH_SIZE) {
+    const batch = writeBatch(db);
+    for (const { subcollection, item } of writes.slice(start, start + COPY_BATCH_SIZE)) {
+      batch.set(doc(db, "lists", destinationListId, subcollection, item.id), item.data());
+    }
+    await batch.commit();
+  }
+}
+
+async function removeSnapshotDocuments(destinationListId, categorySnapshot, mealSnapshot) {
+  const writes = [
+    ...categorySnapshot.docs.map((item) => ({ subcollection: "categories", id: item.id })),
+    ...mealSnapshot.docs.map((item) => ({ subcollection: "meals", id: item.id })),
+  ];
+
+  for (let start = 0; start < writes.length; start += COPY_BATCH_SIZE) {
+    const batch = writeBatch(db);
+    for (const { subcollection, id } of writes.slice(start, start + COPY_BATCH_SIZE)) {
+      batch.delete(doc(db, "lists", destinationListId, subcollection, id));
+    }
+    await batch.commit();
+  }
 }
 
 function editableCategories() {
@@ -446,7 +510,7 @@ createListForm.addEventListener("submit", async (event) => {
     setStatus(listStatus, "Enter a list name.", true);
     return;
   }
-  if (ownedLists.some((list) => String(list.name ?? "").trim().toLowerCase() === name.toLowerCase())) {
+  if (listNameExists(name)) {
     setStatus(listStatus, `You already have a list named ${name}.`, true);
     return;
   }
@@ -466,6 +530,71 @@ createListForm.addEventListener("submit", async (event) => {
   } catch (error) {
     console.error(error);
     setStatus(listStatus, "Could not create the list. Check the Firestore security rules.", true);
+  }
+});
+
+duplicateListForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const user = auth.currentUser;
+  const source = ownedLists.find((list) => list.id === activeListId);
+  const name = duplicateListName.value.trim();
+
+  if (!user || !source) {
+    setStatus(listStatus, "Choose a list to duplicate first.", true);
+    return;
+  }
+  if (!name) {
+    setStatus(listStatus, "Enter a name for the copied list.", true);
+    return;
+  }
+  if (listNameExists(name)) {
+    setStatus(listStatus, `You already have a list named ${name}.`, true);
+    return;
+  }
+
+  let destinationListId = null;
+  let sourceCategorySnapshot = null;
+  let sourceMealSnapshot = null;
+  duplicateListButton.disabled = true;
+
+  try {
+    setStatus(listStatus, `Reading ${source.name} before copying…`);
+    [sourceCategorySnapshot, sourceMealSnapshot] = await Promise.all([
+      getDocs(collection(db, "lists", source.id, "categories")),
+      getDocs(collection(db, "lists", source.id, "meals")),
+    ]);
+
+    setStatus(listStatus, `Creating ${name}…`);
+    const listRef = await addDoc(collection(db, "lists"), {
+      name,
+      ownerUid: user.uid,
+      publicRead: false,
+      schemaVersion: Number(source.schemaVersion) || 1,
+      createdAt: serverTimestamp(),
+    });
+    destinationListId = listRef.id;
+
+    await copySnapshotDocuments(destinationListId, sourceCategorySnapshot, sourceMealSnapshot);
+    await loadOwnedLists(user, destinationListId);
+    setStatus(
+      listStatus,
+      `${name} created as a private copy of ${source.name}: ${sourceCategorySnapshot.size} categories and ${sourceMealSnapshot.size} meals copied.`,
+    );
+  } catch (error) {
+    console.error(error);
+
+    if (destinationListId && sourceCategorySnapshot && sourceMealSnapshot) {
+      try {
+        await removeSnapshotDocuments(destinationListId, sourceCategorySnapshot, sourceMealSnapshot);
+        await deleteDoc(doc(db, "lists", destinationListId));
+      } catch (cleanupError) {
+        console.error("Could not fully roll back the failed list copy.", cleanupError);
+      }
+    }
+
+    setStatus(listStatus, "Could not duplicate the list. No completed copy was selected.", true);
+  } finally {
+    duplicateListButton.disabled = !activeListId;
   }
 });
 
