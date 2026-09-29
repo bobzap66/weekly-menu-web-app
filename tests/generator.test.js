@@ -10,6 +10,7 @@ test("generates ten suggestions from ten distinct categories", () => {
 
   assert.equal(results.length, 10);
   assert.equal(new Set(categoryIds).size, 10);
+  assert.equal(results.every((result) => typeof result.stableId === "string" && result.stableId.length > 0), true);
 });
 
 test("every menu result declares quick and big meal tags", () => {
@@ -86,7 +87,7 @@ test("weighted selection respects item boundaries", () => {
   assert.equal(chooseWeighted(items, () => 0.26).name, "three");
 });
 
-test("applies a guaranteed modifier and preserves meal metadata", () => {
+test("applies a guaranteed modifier and preserves meal metadata and stable ID", () => {
   const fixture = {
     candidateCount: 1,
     categories: [
@@ -96,6 +97,7 @@ test("applies a guaranteed modifier and preserves meal metadata", () => {
         weight: 1,
         meals: [
           {
+            stableId: "meal-dinner",
             name: "Dinner",
             weight: 1,
             quick: true,
@@ -110,6 +112,8 @@ test("applies a guaranteed modifier and preserves meal metadata", () => {
   };
 
   const result = generateMenu(fixture, () => 0, null, { allowNew: false })[0];
+  assert.equal(result.stableId, "meal-dinner");
+  assert.equal(result.mealKey, "meal-dinner");
   assert.equal(result.mealName, "Dinner with a modifier");
   assert.equal(result.quick, true);
   assert.equal(result.bigMeal, true);
@@ -117,7 +121,7 @@ test("applies a guaranteed modifier and preserves meal metadata", () => {
   assert.equal(result.recipeUrl, "https://example.com/recipe");
 });
 
-test("recent meal history makes a repeated meal less likely", () => {
+test("recent meal history makes a repeated stable meal less likely", () => {
   const fixture = {
     candidateCount: 1,
     categories: [
@@ -126,19 +130,19 @@ test("recent meal history makes a repeated meal less likely", () => {
         name: "Test",
         weight: 1,
         meals: [
-          { name: "Recent Dinner", weight: 1, quick: true, bigMeal: true },
-          { name: "Other Dinner", weight: 1, quick: true, bigMeal: false },
+          { stableId: "recent", name: "Recent Dinner", weight: 1, quick: true, bigMeal: true },
+          { stableId: "other", name: "Other Dinner", weight: 1, quick: true, bigMeal: false },
         ],
       },
     ],
   };
   const history = {
-    version: 1,
+    version: 2,
     weeks: [
       {
         weekId: "last-week",
         createdAt: "2026-09-22T00:00:00Z",
-        mealKeys: ["test:Recent Dinner"],
+        mealIds: ["recent"],
       },
     ],
   };
@@ -156,7 +160,7 @@ test("a selected category has a ten percent chance to suggest a new recipe", () 
         id: "test",
         name: "Test",
         weight: 1,
-        meals: [{ name: "Dinner", weight: 1, quick: false, bigMeal: false }],
+        meals: [{ stableId: "meal-dinner", name: "Dinner", weight: 1, quick: false, bigMeal: false }],
       },
     ],
   };
@@ -164,6 +168,7 @@ test("a selected category has a ten percent chance to suggest a new recipe", () 
   const rng = () => rolls.shift() ?? 0.5;
   const result = generateMenu(fixture, rng)[0];
 
+  assert.equal(result.stableId, "new-recipe:test");
   assert.equal(result.categoryId, "test");
   assert.equal(result.mealName, "New Recipe");
   assert.equal(result.newIdea, true);
@@ -177,12 +182,13 @@ test("new category is a separate five percent wildcard", () => {
         id: "test",
         name: "Test",
         weight: 1,
-        meals: [{ name: "Dinner", weight: 1, quick: false, bigMeal: false }],
+        meals: [{ stableId: "meal-dinner", name: "Dinner", weight: 1, quick: false, bigMeal: false }],
       },
     ],
   };
 
   const result = generateMenu(fixture, () => 0.04)[0];
+  assert.equal(result.stableId, "new-category");
   assert.equal(result.categoryId, "__new-category");
   assert.equal(result.mealName, "New Category");
 });
@@ -195,11 +201,12 @@ test("allowNew false suppresses both new-recipe and new-category suggestions", (
         id: "test",
         name: "Test",
         weight: 1,
-        meals: [{ name: "Dinner", weight: 1, quick: false, bigMeal: false }],
+        meals: [{ stableId: "meal-dinner", name: "Dinner", weight: 1, quick: false, bigMeal: false }],
       },
     ],
   };
 
   const result = generateMenu(fixture, () => 0, null, { allowNew: false })[0];
+  assert.equal(result.stableId, "meal-dinner");
   assert.equal(result.mealName, "Dinner");
 });
