@@ -1,4 +1,11 @@
-import { loadRemoteCatalog } from "./catalog.js?v=0.9.2";
+import { loadRemoteCatalog } from "./catalog.js?v=0.10.0";
+import { auth } from "./firebase.js";
+import {
+  DEFAULT_LIST_ID,
+  DEFAULT_LIST_NAME,
+  getStoredActiveList,
+  setStoredActiveList,
+} from "./list-config.js?v=0.10.0";
 
 const STABLE_ID_RESET_KEY = "weekly-menu:stable-id-reset:v2";
 
@@ -13,12 +20,45 @@ try {
   // The planner can still run when browser storage is unavailable.
 }
 
-try {
-  const loaded = await loadRemoteCatalog();
-  document.documentElement.dataset.catalogSource = loaded ? "firestore-list" : "bundled";
-} catch (error) {
-  console.warn("Could not load the Firestore meal list; using bundled meals instead.", error);
-  document.documentElement.dataset.catalogSource = "bundled";
+await auth.authStateReady();
+const user = auth.currentUser;
+let activeList = user
+  ? getStoredActiveList()
+  : { id: DEFAULT_LIST_ID, name: DEFAULT_LIST_NAME };
+let catalogSource = "bundled";
+
+async function loadList(list) {
+  await loadRemoteCatalog(list.id);
+  activeList = list;
+  catalogSource = "firestore-list";
 }
 
-await import("./app.js?v=0.9.2");
+try {
+  await loadList(activeList);
+  if (user) setStoredActiveList(activeList.id, activeList.name);
+} catch (error) {
+  if (activeList.id !== DEFAULT_LIST_ID) {
+    console.warn(`Could not load meal list ${activeList.id}; trying the public default list instead.`, error);
+    try {
+      await loadList({ id: DEFAULT_LIST_ID, name: DEFAULT_LIST_NAME });
+      if (user) setStoredActiveList(DEFAULT_LIST_ID, DEFAULT_LIST_NAME);
+    } catch (fallbackError) {
+      console.warn("Could not load the public Firestore meal list; using bundled meals instead.", fallbackError);
+      activeList = { id: DEFAULT_LIST_ID, name: DEFAULT_LIST_NAME };
+    }
+  } else {
+    console.warn("Could not load the Firestore meal list; using bundled meals instead.", error);
+  }
+}
+
+document.documentElement.dataset.catalogSource = catalogSource;
+document.documentElement.dataset.activeListId = activeList.id;
+document.documentElement.dataset.activeListName = activeList.name;
+
+const listSummary = document.querySelector("#active-list-summary");
+if (listSummary) {
+  listSummary.textContent = `List: ${activeList.name}`;
+  listSummary.hidden = false;
+}
+
+await import("./app.js?v=0.10.0");
