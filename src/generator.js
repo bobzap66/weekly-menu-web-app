@@ -159,13 +159,13 @@ export function generateMenu(menuData, rng = Math.random, history = null, option
 
   const suggestions = [];
 
-  while (suggestions.filter((item) => item.quick).length < minimumQuickCount) {
+  for (let index = 0; index < minimumQuickCount; index += 1) {
     suggestions.push(
       takeRequiredSuggestion(categoryPool, history, rng, "quick", "bigMeal"),
     );
   }
 
-  while (suggestions.filter((item) => item.bigMeal).length < minimumBigMealCount) {
+  for (let index = 0; index < minimumBigMealCount; index += 1) {
     suggestions.push(takeRequiredSuggestion(categoryPool, history, rng, "bigMeal"));
   }
 
