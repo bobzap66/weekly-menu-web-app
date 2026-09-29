@@ -1,4 +1,4 @@
-import { getHistoryWeightMultiplier, mealHistoryKey } from "./history.js";
+import { getHistoryWeightMultiplier } from "./history.js";
 
 const NEW_RECIPE_CHANCE = 0.10;
 const NEW_CATEGORY_CHANCE = 0.05;
@@ -54,15 +54,24 @@ function isRealMeal(meal) {
   return !LEGACY_NEW_RECIPE_MEALS.has(meal.name);
 }
 
+function stableIdForMeal(category, meal) {
+  if (typeof meal.stableId === "string" && meal.stableId.length > 0) {
+    return meal.stableId;
+  }
+
+  // Bundled fallback data is static and predates Firestore stable IDs.
+  return `bundled:${category.id}:${meal.name}`;
+}
+
 function mealsWithHistoryWeights(category, history, requiredTags = []) {
   return category.meals
     .filter((meal) => isRealMeal(meal) && itemMatchesTags(meal, requiredTags))
     .map((meal) => {
-      const mealKey = mealHistoryKey(category.id, meal.name);
+      const stableId = stableIdForMeal(category, meal);
       return {
         ...meal,
-        mealKey,
-        weight: meal.weight * getHistoryWeightMultiplier(mealKey, history),
+        stableId,
+        weight: meal.weight * getHistoryWeightMultiplier(stableId, history),
       };
     });
 }
@@ -80,10 +89,10 @@ function removeCategory(categoryPool, categoryId) {
 
 function createNewRecipeSuggestion(category) {
   return {
+    stableId: `new-recipe:${category.id}`,
     categoryId: category.id,
     categoryName: category.name,
     mealName: "New Recipe",
-    mealKey: `${category.id}:__new-recipe`,
     quick: false,
     bigMeal: false,
     recipeUrl: "",
@@ -94,10 +103,10 @@ function createNewRecipeSuggestion(category) {
 
 function createNewCategorySuggestion() {
   return {
+    stableId: "new-category",
     categoryId: "__new-category",
     categoryName: "New Category",
     mealName: "New Category",
-    mealKey: "__new-category:__new-category",
     quick: false,
     bigMeal: false,
     recipeUrl: "",
@@ -117,10 +126,10 @@ function createSuggestion(category, history, rng, requiredTags = [], allowNewRec
 
   const meal = chooseWeighted(mealsWithHistoryWeights(category, history, requiredTags), rng);
   return {
+    stableId: meal.stableId,
     categoryId: category.id,
     categoryName: category.name,
     mealName: applyModifiers(meal, rng),
-    mealKey: meal.mealKey,
     quick: meal.quick === true,
     bigMeal: meal.bigMeal === true,
     recipeUrl: typeof meal.recipeUrl === "string" ? meal.recipeUrl : "",
