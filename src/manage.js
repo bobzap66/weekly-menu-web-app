@@ -10,10 +10,8 @@ import {
   doc,
   getDocs,
   updateDoc,
-  writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { menuData } from "./data.js";
 import { auth, db } from "./firebase.js";
 
 const loginPanel = document.querySelector("#login-panel");
@@ -26,8 +24,6 @@ const accountEmail = document.querySelector("#account-email");
 const accountUid = document.querySelector("#account-uid");
 const copyUidButton = document.querySelector("#copy-uid-button");
 const signOutButton = document.querySelector("#sign-out-button");
-const seedCard = document.querySelector("#seed-card");
-const seedButton = document.querySelector("#seed-button");
 const mealForm = document.querySelector("#meal-form");
 const mealId = document.querySelector("#meal-id");
 const mealName = document.querySelector("#meal-name");
@@ -54,15 +50,6 @@ function sortByOrder(a, b) {
 function setStatus(element, message, isError = false) {
   element.textContent = message;
   element.classList.toggle("is-error", isError);
-}
-
-function slug(value) {
-  return value
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 70) || "meal";
 }
 
 function populateCategorySelect(selectedId = "") {
@@ -225,78 +212,13 @@ async function loadCatalog() {
       .sort(sortByOrder);
 
     populateCategorySelect(mealCategory.value);
-    seedCard.hidden = !(categories.length === 0 && meals.length === 0);
     renderMeals();
   } catch (error) {
     console.error(error);
     categories = [];
     meals = [];
     mealCatalog.replaceChildren();
-    seedCard.hidden = true;
-    setStatus(
-      catalogStatus,
-      "Could not read Firestore. If this is the first setup, publish the provided security rules first.",
-      true,
-    );
-  }
-}
-
-async function seedBundledCatalog() {
-  seedButton.disabled = true;
-  setStatus(catalogStatus, "Seeding the current bundled catalog…");
-
-  try {
-    const batch = writeBatch(db);
-
-    menuData.categories.forEach((category, categoryIndex) => {
-      const categoryData = {
-        name: category.name,
-        weight: category.weight,
-        order: categoryIndex,
-      };
-
-      if (category.result) {
-        categoryData.result = category.result;
-        categoryData.quick = category.quick === true;
-        categoryData.bigMeal = category.bigMeal === true;
-      }
-
-      batch.set(doc(db, "categories", category.id), categoryData);
-
-      (category.meals ?? []).forEach((meal, mealIndex) => {
-        const mealData = {
-          categoryId: category.id,
-          name: meal.name,
-          weight: meal.weight,
-          quick: meal.quick === true,
-          bigMeal: meal.bigMeal === true,
-          active: true,
-          recipeUrl: "",
-          description: "",
-          order: mealIndex,
-        };
-
-        if (Array.isArray(meal.modifiers)) {
-          mealData.modifiers = meal.modifiers;
-        }
-
-        batch.set(doc(db, "meals", `${category.id}--${slug(meal.name)}`), mealData);
-      });
-    });
-
-    await batch.commit();
-    await loadCatalog();
-    resetMealForm();
-    setStatus(editorStatus, "The bundled meal catalog has been copied to Firestore.");
-  } catch (error) {
-    console.error(error);
-    setStatus(
-      catalogStatus,
-      "Could not seed the database. Make sure your UID is in the Firestore rules allowlist.",
-      true,
-    );
-  } finally {
-    seedButton.disabled = false;
+    setStatus(catalogStatus, "Could not read Firestore. Check the connection and security rules.", true);
   }
 }
 
@@ -330,7 +252,6 @@ copyUidButton.addEventListener("click", async () => {
   }
 });
 
-seedButton.addEventListener("click", seedBundledCatalog);
 cancelEditButton.addEventListener("click", resetMealForm);
 mealSearch.addEventListener("input", renderMeals);
 
