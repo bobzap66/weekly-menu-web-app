@@ -29,24 +29,27 @@ service cloud.firestore {
       allow create, update, delete: if isEditor();
     }
 
-    // List metadata is private to its owner. The nested catalog may be public
-    // only when the list explicitly opts in with publicRead: true.
+    // During the staged migration, the existing allowlisted editor may inspect
+    // and populate a list before its parent list document exists. Once created,
+    // normal owner-based access applies as well.
     match /lists/{listId} {
-      allow read: if ownsList(listId);
+      allow read: if isEditor() || ownsList(listId);
       allow create: if request.auth != null
         && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if ownsList(listId)
-        && request.resource.data.ownerUid == resource.data.ownerUid;
-      allow delete: if ownsList(listId);
+      allow update: if isEditor() || (
+        ownsList(listId)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+      );
+      allow delete: if isEditor() || ownsList(listId);
 
       match /categories/{categoryId} {
-        allow read: if canReadList(listId);
-        allow create, update, delete: if ownsList(listId);
+        allow read: if isEditor() || canReadList(listId);
+        allow create, update, delete: if isEditor() || ownsList(listId);
       }
 
       match /meals/{mealId} {
-        allow read: if canReadList(listId);
-        allow create, update, delete: if ownsList(listId);
+        allow read: if isEditor() || canReadList(listId);
+        allow create, update, delete: if isEditor() || ownsList(listId);
       }
     }
 
