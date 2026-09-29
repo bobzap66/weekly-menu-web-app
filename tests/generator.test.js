@@ -12,6 +12,26 @@ test("generates ten suggestions from ten distinct categories", () => {
   assert.equal(new Set(categoryIds).size, 10);
 });
 
+test("every menu result declares whether it is a quick meal", () => {
+  for (const category of menuData.categories) {
+    if (category.meals) {
+      for (const meal of category.meals) {
+        assert.equal(
+          typeof meal.quick,
+          "boolean",
+          `${category.name} / ${meal.name} must declare quick: true or false`,
+        );
+      }
+    } else {
+      assert.equal(
+        typeof category.quick,
+        "boolean",
+        `${category.name} must declare quick: true or false`,
+      );
+    }
+  }
+});
+
 test("weighted selection respects item boundaries", () => {
   const items = [
     { name: "one", weight: 1 },
@@ -34,6 +54,7 @@ test("applies a guaranteed modifier", () => {
           {
             name: "Dinner",
             weight: 1,
+            quick: true,
             modifiers: [{ text: "with a modifier", chance: 1 }],
           },
         ],
@@ -53,8 +74,8 @@ test("recent meal history makes a repeated meal less likely", () => {
         name: "Test",
         weight: 1,
         meals: [
-          { name: "Recent Dinner", weight: 1 },
-          { name: "Other Dinner", weight: 1 },
+          { name: "Recent Dinner", weight: 1, quick: true },
+          { name: "Other Dinner", weight: 1, quick: true },
         ],
       },
     ],
