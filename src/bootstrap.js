@@ -1,4 +1,4 @@
-import { loadRemoteCatalog } from "./catalog.js";
+import { loadRemoteCatalog } from "./catalog.js?v=0.9.0";
 
 const STABLE_ID_RESET_KEY = "weekly-menu:stable-id-reset:v1";
 
@@ -20,4 +20,4 @@ try {
   document.documentElement.dataset.catalogSource = "bundled";
 }
 
-await import("./app.js");
+await import("./app.js?v=0.9.0");
