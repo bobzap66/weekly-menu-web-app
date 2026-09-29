@@ -9,7 +9,7 @@
     />
     <title>Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./planner.css?v=0.9.2" />
+    <link rel="stylesheet" href="./planner.css?v=0.10.0" />
   </head>
   <body>
     <main class="app-shell">
@@ -20,7 +20,8 @@
           Plan the shape of your week, roll dinner ideas for the days you are cooking, and let
           quick meals, guest nights, and carryovers land where they fit best.
         </p>
-        <p><a href="./manage.html">Manage meals</a></p>
+        <p id="active-list-summary" class="selection-status" hidden></p>
+        <p><a href="./manage.html">Manage meals and lists</a></p>
       </header>
 
       <section class="menu-card" aria-labelledby="menu-heading">
@@ -51,7 +52,7 @@
       </section>
     </main>
 
-    <script type="module" src="./src/bootstrap.js?v=0.9.2"></script>
-    <script type="module" src="./src/print.js?v=0.9.2"></script>
+    <script type="module" src="./src/bootstrap.js?v=0.10.0"></script>
+    <script type="module" src="./src/print.js?v=0.10.0"></script>
   </body>
 </html>
