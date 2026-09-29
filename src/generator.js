@@ -36,9 +36,13 @@ function applyModifiers(meal, rng) {
   return [meal.name, ...applied].join(" ");
 }
 
-function mealsWithHistoryWeights(category, history, quickOnly = false) {
+function itemMatchesTag(item, requiredTag) {
+  return !requiredTag || item[requiredTag] === true;
+}
+
+function mealsWithHistoryWeights(category, history, requiredTag = null) {
   return category.meals
-    .filter((meal) => !quickOnly || meal.quick === true)
+    .filter((meal) => itemMatchesTag(meal, requiredTag))
     .map((meal) => {
       const mealKey = mealHistoryKey(category.id, meal.name);
       return {
@@ -49,12 +53,12 @@ function mealsWithHistoryWeights(category, history, quickOnly = false) {
     });
 }
 
-function categoryCanProduceQuickMeal(category) {
+function categoryCanProduceTag(category, tag) {
   if (category.result) {
-    return category.quick === true;
+    return category[tag] === true;
   }
 
-  return category.meals.some((meal) => meal.quick === true);
+  return category.meals.some((meal) => meal[tag] === true);
 }
 
 function removeCategory(categoryPool, categoryId) {
@@ -64,10 +68,10 @@ function removeCategory(categoryPool, categoryId) {
   }
 }
 
-function createSuggestion(category, history, rng, quickOnly = false) {
+function createSuggestion(category, history, rng, requiredTag = null) {
   if (category.result) {
-    if (quickOnly && category.quick !== true) {
-      throw new Error(`${category.name} cannot produce a quick meal.`);
+    if (!itemMatchesTag(category, requiredTag)) {
+      throw new Error(`${category.name} cannot satisfy the required meal tag.`);
     }
 
     return {
@@ -80,7 +84,7 @@ function createSuggestion(category, history, rng, quickOnly = false) {
     };
   }
 
-  const meal = chooseWeighted(mealsWithHistoryWeights(category, history, quickOnly), rng);
+  const meal = chooseWeighted(mealsWithHistoryWeights(category, history, requiredTag), rng);
   return {
     categoryId: category.id,
     categoryName: category.name,
@@ -91,9 +95,25 @@ function createSuggestion(category, history, rng, quickOnly = false) {
   };
 }
 
+function takeRequiredSuggestion(categoryPool, history, rng, tag, preserveTag = null) {
+  const capable = categoryPool.filter((category) => categoryCanProduceTag(category, tag));
+  if (capable.length === 0) {
+    throw new Error(`Not enough available categories can produce ${tag} meals.`);
+  }
+
+  const preferred = preserveTag
+    ? capable.filter((category) => !categoryCanProduceTag(category, preserveTag))
+    : capable;
+  const pool = preferred.length > 0 ? preferred : capable;
+  const category = chooseWeighted(pool, rng);
+  removeCategory(categoryPool, category.id);
+  return createSuggestion(category, history, rng, tag);
+}
+
 export function generateMenu(menuData, rng = Math.random, history = null, options = {}) {
   const candidateCount = options.candidateCount ?? menuData.candidateCount;
   const minimumQuickCount = options.minimumQuickCount ?? 0;
+  const minimumBigMealCount = options.minimumBigMealCount ?? 0;
   const excludedCategoryIds = new Set(options.excludeCategoryIds ?? []);
   const categoryPool = menuData.categories.filter((category) => !excludedCategoryIds.has(category.id));
 
@@ -105,26 +125,48 @@ export function generateMenu(menuData, rng = Math.random, history = null, option
     throw new Error("Minimum quick count must be a non-negative integer.");
   }
 
+  if (!Number.isInteger(minimumBigMealCount) || minimumBigMealCount < 0) {
+    throw new Error("Minimum big meal count must be a non-negative integer.");
+  }
+
   if (candidateCount > categoryPool.length) {
     throw new Error("Candidate count cannot exceed the number of available categories.");
   }
 
-  if (minimumQuickCount > candidateCount) {
-    throw new Error("Minimum quick count cannot exceed the candidate count.");
+  if (minimumQuickCount + minimumBigMealCount > candidateCount) {
+    throw new Error("Required quick and big meal slots cannot exceed the candidate count.");
   }
 
-  const quickCapableCount = categoryPool.filter(categoryCanProduceQuickMeal).length;
-  if (minimumQuickCount > quickCapableCount) {
+  const quickOnlyCount = categoryPool.filter(
+    (category) => categoryCanProduceTag(category, "quick") && !categoryCanProduceTag(category, "bigMeal"),
+  ).length;
+  const bothCount = categoryPool.filter(
+    (category) => categoryCanProduceTag(category, "quick") && categoryCanProduceTag(category, "bigMeal"),
+  ).length;
+  const bigOnlyCount = categoryPool.filter(
+    (category) => !categoryCanProduceTag(category, "quick") && categoryCanProduceTag(category, "bigMeal"),
+  ).length;
+  const bothNeededForQuick = Math.max(0, minimumQuickCount - quickOnlyCount);
+  const remainingBigCapacity = bigOnlyCount + bothCount - bothNeededForQuick;
+
+  if (minimumQuickCount > quickOnlyCount + bothCount) {
     throw new Error("Not enough available categories can produce quick meals.");
+  }
+
+  if (minimumBigMealCount > remainingBigCapacity) {
+    throw new Error("Not enough available categories can produce big meals alongside the quick meal requirements.");
   }
 
   const suggestions = [];
 
-  while (suggestions.length < minimumQuickCount) {
-    const quickCategories = categoryPool.filter(categoryCanProduceQuickMeal);
-    const category = chooseWeighted(quickCategories, rng);
-    removeCategory(categoryPool, category.id);
-    suggestions.push(createSuggestion(category, history, rng, true));
+  while (suggestions.filter((item) => item.quick).length < minimumQuickCount) {
+    suggestions.push(
+      takeRequiredSuggestion(categoryPool, history, rng, "quick", "bigMeal"),
+    );
+  }
+
+  while (suggestions.filter((item) => item.bigMeal).length < minimumBigMealCount) {
+    suggestions.push(takeRequiredSuggestion(categoryPool, history, rng, "bigMeal"));
   }
 
   while (suggestions.length < candidateCount) {
