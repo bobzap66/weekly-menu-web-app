@@ -87,8 +87,15 @@ function removeCategory(categoryPool, categoryId) {
   if (index >= 0) categoryPool.splice(index, 1);
 }
 
-function createNewRecipeSuggestion(category) {
+function withPlannerIdentity(suggestion) {
   return {
+    ...suggestion,
+    mealKey: suggestion.stableId,
+  };
+}
+
+function createNewRecipeSuggestion(category) {
+  return withPlannerIdentity({
     stableId: `new-recipe:${category.id}`,
     categoryId: category.id,
     categoryName: category.name,
@@ -98,11 +105,11 @@ function createNewRecipeSuggestion(category) {
     recipeUrl: "",
     description: `Try a new ${category.name} recipe.`,
     newIdea: true,
-  };
+  });
 }
 
 function createNewCategorySuggestion() {
-  return {
+  return withPlannerIdentity({
     stableId: "new-category",
     categoryId: "__new-category",
     categoryName: "New Category",
@@ -112,7 +119,7 @@ function createNewCategorySuggestion() {
     recipeUrl: "",
     description: "Try something from a category that is not already in the rotation.",
     newIdea: true,
-  };
+  });
 }
 
 function createSuggestion(category, history, rng, requiredTags = [], allowNewRecipe = true) {
@@ -125,7 +132,7 @@ function createSuggestion(category, history, rng, requiredTags = [], allowNewRec
   }
 
   const meal = chooseWeighted(mealsWithHistoryWeights(category, history, requiredTags), rng);
-  return {
+  return withPlannerIdentity({
     stableId: meal.stableId,
     categoryId: category.id,
     categoryName: category.name,
@@ -134,7 +141,7 @@ function createSuggestion(category, history, rng, requiredTags = [], allowNewRec
     bigMeal: meal.bigMeal === true,
     recipeUrl: typeof meal.recipeUrl === "string" ? meal.recipeUrl : "",
     description: typeof meal.description === "string" ? meal.description : "",
-  };
+  });
 }
 
 function takeRequiredSuggestion(categoryPool, history, rng, requiredTags, avoidTags = []) {
