@@ -7,6 +7,7 @@ import {
   assignMealDay,
   canAssignMealDay,
   countBigMealDays,
+  countCombinedMealDays,
   countMealDays,
   countQuickMealDays,
   createMenuState,
@@ -14,6 +15,7 @@ import {
   createWeekPlan,
   getBigMealShortfall,
   getCarryoverMeals,
+  getCombinedMealShortfall,
   getEatenMeals,
   getMealRequirementShortfall,
   getQuickMealShortfall,
@@ -22,6 +24,7 @@ import {
   getSelectedMeals,
   isValidMenuState,
   reopenChoices,
+  setDayRequirement,
   setDayType,
   toggleCarryover,
   toggleRejection,
@@ -34,7 +37,7 @@ function makeSuggestions(count = 10) {
     mealName: `Meal ${index}`,
     mealKey: `category-${index}:Meal ${index}`,
     quick: index < 4,
-    bigMeal: index >= 4 && index < 8,
+    bigMeal: index >= 2 && index < 8,
   }));
 }
 
@@ -53,10 +56,10 @@ function finalize(state) {
   return state;
 }
 
-test("planning state supports variable day types", () => {
+test("planning state supports non-meal types plus independent quick and big requirements", () => {
   let state = createPlanningState();
-  state = setDayType(state, "Tuesday", DAY_TYPES.QUICK);
-  state = setDayType(state, "Thursday", DAY_TYPES.BIG);
+  state = setDayRequirement(state, "Tuesday", "quick", true);
+  state = setDayRequirement(state, "Tuesday", "bigMeal", true);
   state = setDayType(state, "Friday", DAY_TYPES.LEFTOVERS);
   state = setDayType(state, "Saturday", DAY_TYPES.EATING_OUT);
   state = setDayType(state, "Sunday", DAY_TYPES.NO_MEAL);
@@ -65,7 +68,23 @@ test("planning state supports variable day types", () => {
   assert.equal(countMealDays(state.weekPlan), 4);
   assert.equal(countQuickMealDays(state.weekPlan), 1);
   assert.equal(countBigMealDays(state.weekPlan), 1);
+  assert.equal(countCombinedMealDays(state.weekPlan), 1);
+  assert.equal(state.weekPlan.Tuesday.quick, true);
+  assert.equal(state.weekPlan.Tuesday.bigMeal, true);
   assert.equal(isValidMenuState(state), true);
+});
+
+test("switching a dinner to a non-meal day clears meal requirements", () => {
+  let state = createPlanningState();
+  state = setDayRequirement(state, "Saturday", "quick", true);
+  state = setDayRequirement(state, "Saturday", "bigMeal", true);
+  state = setDayType(state, "Saturday", DAY_TYPES.LEFTOVERS);
+
+  assert.deepEqual(state.weekPlan.Saturday, {
+    type: DAY_TYPES.LEFTOVERS,
+    quick: false,
+    bigMeal: false,
+  });
 });
 
 test("a five-dinner week finalizes after three cuts", () => {
@@ -82,75 +101,49 @@ test("a five-dinner week finalizes after three cuts", () => {
   assert.equal(getScheduledWeek(state).find((entry) => entry.day === "Sunday").type, DAY_TYPES.EATING_OUT);
 });
 
-test("quick days prevent finalization without enough quick dinners", () => {
-  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
-  plan.Monday = DAY_TYPES.QUICK;
-  plan.Tuesday = DAY_TYPES.NORMAL;
+test("a day checked quick and big requires one meal carrying both tags", () => {
+  let planning = createPlanningState([], createWeekPlan(DAY_TYPES.NO_MEAL));
+  planning = setDayType(planning, "Saturday", DAY_TYPES.NORMAL);
+  planning = setDayRequirement(planning, "Saturday", "quick", true);
+  planning = setDayRequirement(planning, "Saturday", "bigMeal", true);
+  const plan = planning.weekPlan;
 
   const suggestions = [
-    { categoryId: "q", categoryName: "Quick", mealName: "Quick Meal", mealKey: "q:Quick Meal", quick: true, bigMeal: false },
-    ...Array.from({ length: 4 }, (_, index) => ({
-      categoryId: `slow-${index}`,
-      categoryName: "Slow",
-      mealName: `Slow ${index}`,
-      mealKey: `slow-${index}:Slow ${index}`,
-      quick: false,
-      bigMeal: false,
-    })),
+    { categoryId: "both", categoryName: "Both", mealName: "Both Meal", mealKey: "both:Both Meal", quick: true, bigMeal: true },
+    { categoryId: "quick", categoryName: "Quick", mealName: "Quick Meal", mealKey: "quick:Quick Meal", quick: true, bigMeal: false },
+    { categoryId: "big", categoryName: "Big", mealName: "Big Meal", mealKey: "big:Big Meal", quick: false, bigMeal: true },
+    { categoryId: "plain1", categoryName: "Plain", mealName: "Plain 1", mealKey: "plain1:Plain 1", quick: false, bigMeal: false },
   ];
 
   let state = createMenuState(suggestions, plan);
   state = toggleRejection(state, state.candidates[0].id);
-  state = toggleRejection(state, state.candidates[1].id);
+  state = toggleRejection(state, state.candidates[3].id);
   state = toggleRejection(state, state.candidates[2].id);
 
   assert.equal(state.mode, "choosing");
-  assert.equal(getQuickMealShortfall(state), 1);
-
-  state = toggleRejection(state, state.candidates[0].id);
-  state = toggleRejection(state, state.candidates[3].id);
-
-  assert.equal(state.mode, "scheduled");
   assert.equal(getQuickMealShortfall(state), 0);
-});
+  assert.equal(getBigMealShortfall(state), 1);
+  assert.equal(getCombinedMealShortfall(state), 1);
+  assert.equal(getMealRequirementShortfall(state), 1);
 
-test("guest days prevent finalization without a big meal", () => {
-  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
-  plan.Saturday = DAY_TYPES.BIG;
-  plan.Sunday = DAY_TYPES.NORMAL;
-
-  const suggestions = [
-    { categoryId: "b", categoryName: "Big", mealName: "Big Meal", mealKey: "b:Big Meal", quick: false, bigMeal: true },
-    ...Array.from({ length: 4 }, (_, index) => ({
-      categoryId: `small-${index}`,
-      categoryName: "Small",
-      mealName: `Small ${index}`,
-      mealKey: `small-${index}:Small ${index}`,
-      quick: false,
-      bigMeal: false,
-    })),
-  ];
-
-  let state = createMenuState(suggestions, plan);
   state = toggleRejection(state, state.candidates[0].id);
   state = toggleRejection(state, state.candidates[1].id);
-  state = toggleRejection(state, state.candidates[2].id);
-
-  assert.equal(state.mode, "choosing");
-  assert.equal(getBigMealShortfall(state), 1);
-
-  state = toggleRejection(state, state.candidates[0].id);
-  state = toggleRejection(state, state.candidates[3].id);
 
   assert.equal(state.mode, "scheduled");
-  assert.equal(getBigMealShortfall(state), 0);
-  assert.equal(getScheduledWeek(state).find((entry) => entry.day === "Saturday").meal.bigMeal, true);
+  const saturday = getScheduledWeek(state).find((entry) => entry.day === "Saturday");
+  assert.equal(saturday.meal.quick, true);
+  assert.equal(saturday.meal.bigMeal, true);
+  assert.equal(saturday.quickRequired, true);
+  assert.equal(saturday.bigMealRequired, true);
 });
 
-test("one quick-and-big dinner cannot fill two separate requirement days", () => {
-  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
-  plan.Monday = DAY_TYPES.QUICK;
-  plan.Saturday = DAY_TYPES.BIG;
+test("separate quick and guest days still require separate qualifying meals", () => {
+  let planning = createPlanningState([], createWeekPlan(DAY_TYPES.NO_MEAL));
+  planning = setDayType(planning, "Monday", DAY_TYPES.NORMAL);
+  planning = setDayType(planning, "Saturday", DAY_TYPES.NORMAL);
+  planning = setDayRequirement(planning, "Monday", "quick", true);
+  planning = setDayRequirement(planning, "Saturday", "bigMeal", true);
+  const plan = planning.weekPlan;
 
   const suggestions = [
     { categoryId: "both", categoryName: "Both", mealName: "Both Meal", mealKey: "both:Both Meal", quick: true, bigMeal: true },
@@ -166,25 +159,24 @@ test("one quick-and-big dinner cannot fill two separate requirement days", () =>
   state = toggleRejection(state, state.candidates[4].id);
 
   assert.equal(state.mode, "choosing");
-  assert.equal(getQuickMealShortfall(state), 0);
-  assert.equal(getBigMealShortfall(state), 0);
   assert.equal(getMealRequirementShortfall(state), 1);
 
   state = toggleRejection(state, state.candidates[2].id);
   state = toggleRejection(state, state.candidates[1].id);
-
   assert.equal(state.mode, "scheduled");
-  assert.equal(getMealRequirementShortfall(state), 0);
 });
 
-test("quick-day assignments cannot be broken by a manual swap", () => {
-  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
-  plan.Monday = DAY_TYPES.QUICK;
-  plan.Tuesday = DAY_TYPES.NORMAL;
+test("manual swaps cannot break a combined quick-and-big day", () => {
+  let planning = createPlanningState([], createWeekPlan(DAY_TYPES.NO_MEAL));
+  planning = setDayType(planning, "Saturday", DAY_TYPES.NORMAL);
+  planning = setDayType(planning, "Sunday", DAY_TYPES.NORMAL);
+  planning = setDayRequirement(planning, "Saturday", "quick", true);
+  planning = setDayRequirement(planning, "Saturday", "bigMeal", true);
+  const plan = planning.weekPlan;
 
   const suggestions = [
-    { categoryId: "q", categoryName: "Quick", mealName: "Quick Meal", mealKey: "q:Quick Meal", quick: true, bigMeal: false },
-    { categoryId: "s", categoryName: "Slow", mealName: "Slow Meal", mealKey: "s:Slow Meal", quick: false, bigMeal: false },
+    { categoryId: "both", categoryName: "Both", mealName: "Both Meal", mealKey: "both:Both Meal", quick: true, bigMeal: true },
+    { categoryId: "plain", categoryName: "Plain", mealName: "Plain Meal", mealKey: "plain:Plain Meal", quick: false, bigMeal: false },
     { categoryId: "x1", categoryName: "Extra", mealName: "Extra 1", mealKey: "x1:Extra 1", quick: false, bigMeal: false },
     { categoryId: "x2", categoryName: "Extra", mealName: "Extra 2", mealKey: "x2:Extra 2", quick: false, bigMeal: false },
     { categoryId: "x3", categoryName: "Extra", mealName: "Extra 3", mealKey: "x3:Extra 3", quick: false, bigMeal: false },
@@ -195,32 +187,9 @@ test("quick-day assignments cannot be broken by a manual swap", () => {
   state = toggleRejection(state, state.candidates[3].id);
   state = toggleRejection(state, state.candidates[4].id);
 
-  const quickMeal = getScheduledWeek(state).find((entry) => entry.day === "Monday").meal;
-  assert.equal(canAssignMealDay(state, quickMeal.id, "Tuesday"), false);
-  assert.deepEqual(assignMealDay(state, quickMeal.id, "Tuesday"), state);
-});
-
-test("guest-day assignments cannot be broken by a manual swap", () => {
-  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
-  plan.Saturday = DAY_TYPES.BIG;
-  plan.Sunday = DAY_TYPES.NORMAL;
-
-  const suggestions = [
-    { categoryId: "b", categoryName: "Big", mealName: "Big Meal", mealKey: "b:Big Meal", quick: false, bigMeal: true },
-    { categoryId: "s", categoryName: "Small", mealName: "Small Meal", mealKey: "s:Small Meal", quick: false, bigMeal: false },
-    { categoryId: "x1", categoryName: "Extra", mealName: "Extra 1", mealKey: "x1:Extra 1", quick: false, bigMeal: false },
-    { categoryId: "x2", categoryName: "Extra", mealName: "Extra 2", mealKey: "x2:Extra 2", quick: false, bigMeal: false },
-    { categoryId: "x3", categoryName: "Extra", mealName: "Extra 3", mealKey: "x3:Extra 3", quick: false, bigMeal: false },
-  ];
-
-  let state = createMenuState(suggestions, plan);
-  state = toggleRejection(state, state.candidates[2].id);
-  state = toggleRejection(state, state.candidates[3].id);
-  state = toggleRejection(state, state.candidates[4].id);
-
-  const bigMeal = getScheduledWeek(state).find((entry) => entry.day === "Saturday").meal;
-  assert.equal(canAssignMealDay(state, bigMeal.id, "Sunday"), false);
-  assert.deepEqual(assignMealDay(state, bigMeal.id, "Sunday"), state);
+  const bothMeal = getScheduledWeek(state).find((entry) => entry.day === "Saturday").meal;
+  assert.equal(canAssignMealDay(state, bothMeal.id, "Sunday"), false);
+  assert.deepEqual(assignMealDay(state, bothMeal.id, "Sunday"), state);
 });
 
 test("marks uneaten meals as carryovers and keeps them out of eaten history", () => {
