@@ -121,13 +121,40 @@
           <div class="admin-section-heading catalog-heading-row">
             <div>
               <p class="step-label">Catalog</p>
-              <h2 id="catalog-heading">Meals</h2>
+              <h2 id="catalog-heading">Browse meals</h2>
             </div>
-            <label class="search-field">
-              <span class="sr-only">Search meals</span>
-              <input id="meal-search" type="search" placeholder="Search meals…" />
-            </label>
+            <div class="catalog-tools">
+              <label class="filter-field">
+                <span>Category</span>
+                <select id="category-filter">
+                  <option value="">All categories</option>
+                </select>
+              </label>
+              <label class="search-field">
+                <span>Search</span>
+                <input id="meal-search" type="search" placeholder="Search meals…" />
+              </label>
+            </div>
           </div>
+
+          <form id="category-edit-form" class="category-edit-panel" hidden>
+            <input id="category-edit-id" type="hidden" />
+            <div class="category-edit-summary">
+              <p class="step-label">Selected category</p>
+              <strong id="category-meal-count"></strong>
+            </div>
+            <label>
+              <span>Category name</span>
+              <input id="category-edit-name" type="text" maxlength="80" required />
+            </label>
+            <label>
+              <span>Category weight</span>
+              <input id="category-edit-weight" type="number" min="0.01" step="0.01" required />
+            </label>
+            <button class="action-button primary-button compact-button" type="submit">Save category</button>
+            <p id="category-edit-status" class="inline-status" aria-live="polite"></p>
+          </form>
+
           <p id="catalog-status" class="selection-status" aria-live="polite"></p>
           <div id="meal-catalog" class="admin-meal-list"></div>
         </section>
