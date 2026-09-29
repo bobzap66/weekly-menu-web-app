@@ -48,12 +48,18 @@
 .list-management-grid {
   display: grid;
   grid-template-columns: minmax(13rem, 0.8fr) minmax(18rem, 1.4fr);
-  align-items: end;
+  align-items: start;
   gap: 1rem;
   padding: 1.5rem;
 }
 
-.create-list-form {
+.list-actions-stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.create-list-form,
+.duplicate-list-form {
   display: grid;
   grid-template-columns: minmax(12rem, 1fr) auto;
   align-items: end;
@@ -62,6 +68,7 @@
 
 .list-select-field,
 .create-list-form label,
+.duplicate-list-form label,
 .admin-form label:not(.checkbox-label),
 .search-field,
 .filter-field,
@@ -75,6 +82,7 @@
 
 .list-select-field select,
 .create-list-form input,
+.duplicate-list-form input,
 .admin-form input,
 .admin-form select,
 .admin-form textarea,
@@ -313,7 +321,8 @@
   .admin-form,
   .category-edit-panel,
   .list-management-grid,
-  .create-list-form {
+  .create-list-form,
+  .duplicate-list-form {
     grid-template-columns: 1fr;
   }
 
