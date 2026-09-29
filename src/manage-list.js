@@ -9,11 +9,19 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  query,
+  serverTimestamp,
   updateDoc,
+  where,
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 import { auth, db } from "./firebase.js";
-import { DEFAULT_LIST_ID, DEFAULT_LIST_NAME } from "./list-config.js?v=0.9.2";
+import {
+  DEFAULT_LIST_ID,
+  DEFAULT_LIST_NAME,
+  getStoredActiveList,
+  setStoredActiveList,
+} from "./list-config.js?v=0.10.0";
 
 const loginPanel = document.querySelector("#login-panel");
 const adminPanel = document.querySelector("#admin-panel");
@@ -25,6 +33,12 @@ const accountEmail = document.querySelector("#account-email");
 const accountUid = document.querySelector("#account-uid");
 const copyUidButton = document.querySelector("#copy-uid-button");
 const signOutButton = document.querySelector("#sign-out-button");
+const listSelect = document.querySelector("#list-select");
+const createListForm = document.querySelector("#create-list-form");
+const newListName = document.querySelector("#new-list-name");
+const listStatus = document.querySelector("#list-status");
+const listNameDisplay = document.querySelector("#active-list-name");
+const listRequiredSections = [...document.querySelectorAll("[data-list-required]")];
 const categoryForm = document.querySelector("#category-form");
 const categoryName = document.querySelector("#category-name");
 const categoryWeight = document.querySelector("#category-weight");
@@ -51,15 +65,22 @@ const editorStatus = document.querySelector("#editor-status");
 const catalogStatus = document.querySelector("#catalog-status");
 const mealCatalog = document.querySelector("#meal-catalog");
 const mealSearch = document.querySelector("#meal-search");
-const listNameDisplay = document.querySelector("#active-list-name");
 
+let ownedLists = [];
+let activeListId = null;
+let activeListName = "";
 let categories = [];
 let meals = [];
 
-const categoriesCollection = () => collection(db, "lists", DEFAULT_LIST_ID, "categories");
-const mealsCollection = () => collection(db, "lists", DEFAULT_LIST_ID, "meals");
-const categoryDoc = (id) => doc(db, "lists", DEFAULT_LIST_ID, "categories", id);
-const mealDoc = (id) => doc(db, "lists", DEFAULT_LIST_ID, "meals", id);
+function activeListRequired() {
+  if (!activeListId) throw new Error("Choose or create a meal list first.");
+  return activeListId;
+}
+
+const categoriesCollection = () => collection(db, "lists", activeListRequired(), "categories");
+const mealsCollection = () => collection(db, "lists", activeListRequired(), "meals");
+const categoryDoc = (id) => doc(db, "lists", activeListRequired(), "categories", id);
+const mealDoc = (id) => doc(db, "lists", activeListRequired(), "meals", id);
 
 function sortByOrder(a, b) {
   return (a.order ?? 0) - (b.order ?? 0) || String(a.name ?? "").localeCompare(String(b.name ?? ""));
@@ -70,13 +91,115 @@ function setStatus(element, message, isError = false) {
   element.classList.toggle("is-error", isError);
 }
 
+function setListRequiredVisibility(hasList) {
+  for (const section of listRequiredSections) section.hidden = !hasList;
+}
+
+function renderListControls() {
+  listSelect.replaceChildren();
+
+  if (ownedLists.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No lists yet";
+    listSelect.append(option);
+    listSelect.disabled = true;
+    listNameDisplay.textContent = "None";
+    setListRequiredVisibility(false);
+    return;
+  }
+
+  listSelect.disabled = false;
+  for (const list of ownedLists) {
+    const option = document.createElement("option");
+    option.value = list.id;
+    option.textContent = list.name;
+    option.selected = list.id === activeListId;
+    listSelect.append(option);
+  }
+
+  listSelect.value = activeListId ?? ownedLists[0].id;
+  listNameDisplay.textContent = activeListName || "None";
+  setListRequiredVisibility(Boolean(activeListId));
+}
+
+function clearCatalogUi() {
+  categories = [];
+  meals = [];
+  mealCatalog.replaceChildren();
+  categoryFilter.replaceChildren();
+  const allOption = document.createElement("option");
+  allOption.value = "";
+  allOption.textContent = "All categories";
+  categoryFilter.append(allOption);
+  categoryEditForm.hidden = true;
+  populateCategorySelect();
+  setStatus(catalogStatus, activeListId ? "This list has no meals yet." : "Create a list to begin.");
+}
+
+async function loadOwnedLists(user, preferredId = null) {
+  const listQuery = query(collection(db, "lists"), where("ownerUid", "==", user.uid));
+  const snapshot = await getDocs(listQuery);
+  ownedLists = snapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() }))
+    .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")));
+
+  const stored = getStoredActiveList();
+  const desiredId = preferredId ?? stored.id;
+  const selected =
+    ownedLists.find((list) => list.id === desiredId) ??
+    ownedLists.find((list) => list.id === DEFAULT_LIST_ID) ??
+    ownedLists[0] ??
+    null;
+
+  activeListId = selected?.id ?? null;
+  activeListName = selected?.name ?? "";
+
+  if (selected) setStoredActiveList(selected.id, selected.name);
+  renderListControls();
+
+  if (selected) {
+    await loadCatalog();
+    resetMealForm();
+  } else {
+    clearCatalogUi();
+    setStatus(listStatus, "You do not have a meal list yet. Create one below.");
+  }
+}
+
+async function switchToList(id) {
+  const selected = ownedLists.find((list) => list.id === id);
+  if (!selected) return;
+
+  activeListId = selected.id;
+  activeListName = selected.name;
+  setStoredActiveList(selected.id, selected.name);
+  listNameDisplay.textContent = selected.name;
+  setListRequiredVisibility(true);
+  resetMealForm();
+  categoryFilter.value = "";
+  mealSearch.value = "";
+  await loadCatalog();
+  setStatus(listStatus, `Now editing ${selected.name}. The planner will use this list while you are signed in.`);
+}
+
 function editableCategories() {
   return categories.filter((category) => !category.result).sort(sortByOrder);
 }
 
 function populateCategorySelect(selectedId = "") {
   mealCategory.replaceChildren();
-  for (const category of editableCategories()) {
+  const editable = editableCategories();
+
+  if (editable.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Add a category first";
+    mealCategory.append(option);
+    return;
+  }
+
+  for (const category of editable) {
     const option = document.createElement("option");
     option.value = category.id;
     option.textContent = category.name;
@@ -176,15 +299,15 @@ function createTag(text, className) {
 }
 
 function renderMeals() {
-  const query = mealSearch.value.trim().toLowerCase();
+  const searchText = mealSearch.value.trim().toLowerCase();
   const selectedCategoryId = categoryFilter.value;
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const filtered = meals
     .filter((meal) => {
       if (selectedCategoryId && meal.categoryId !== selectedCategoryId) return false;
-      if (!query) return true;
+      if (!searchText) return true;
       const categoryNameValue = categoryById.get(meal.categoryId)?.name ?? "";
-      return `${meal.name} ${categoryNameValue} ${meal.description ?? ""}`.toLowerCase().includes(query);
+      return `${meal.name} ${categoryNameValue} ${meal.description ?? ""}`.toLowerCase().includes(searchText);
     })
     .sort((a, b) => {
       const categoryOrderA = categoryById.get(a.categoryId)?.order ?? 0;
@@ -249,13 +372,18 @@ function renderMeals() {
   mealCatalog.replaceChildren(fragment);
   const category = categories.find((item) => item.id === selectedCategoryId);
   const scope = category ? ` in ${category.name}` : "";
-  catalogStatus.textContent = `${filtered.length} of ${meals.length} meals shown${scope}.`;
+  catalogStatus.textContent = `${filtered.length} of ${meals.length} meals shown${scope} in ${activeListName}.`;
 }
 
 async function loadCatalog() {
+  if (!activeListId) {
+    clearCatalogUi();
+    return;
+  }
+
   const selectedCategoryId = categoryFilter.value;
   try {
-    setStatus(catalogStatus, `Loading ${DEFAULT_LIST_NAME}…`);
+    setStatus(catalogStatus, `Loading ${activeListName}…`);
     const [categorySnapshot, mealSnapshot] = await Promise.all([
       getDocs(categoriesCollection()),
       getDocs(mealsCollection()),
@@ -269,10 +397,7 @@ async function loadCatalog() {
     renderMeals();
   } catch (error) {
     console.error(error);
-    categories = [];
-    meals = [];
-    mealCatalog.replaceChildren();
-    categoryEditForm.hidden = true;
+    clearCatalogUi();
     setStatus(catalogStatus, "Could not read this meal list. Check the connection and Firestore security rules.", true);
   }
 }
@@ -304,11 +429,55 @@ copyUidButton.addEventListener("click", async () => {
   }
 });
 
+listSelect.addEventListener("change", async () => {
+  await switchToList(listSelect.value);
+});
+
+createListForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const user = auth.currentUser;
+  const name = newListName.value.trim();
+
+  if (!user) {
+    setStatus(listStatus, "Sign in before creating a list.", true);
+    return;
+  }
+  if (!name) {
+    setStatus(listStatus, "Enter a list name.", true);
+    return;
+  }
+  if (ownedLists.some((list) => String(list.name ?? "").trim().toLowerCase() === name.toLowerCase())) {
+    setStatus(listStatus, `You already have a list named ${name}.`, true);
+    return;
+  }
+
+  try {
+    setStatus(listStatus, `Creating ${name}…`);
+    const listRef = await addDoc(collection(db, "lists"), {
+      name,
+      ownerUid: user.uid,
+      publicRead: false,
+      schemaVersion: 1,
+      createdAt: serverTimestamp(),
+    });
+    createListForm.reset();
+    await loadOwnedLists(user, listRef.id);
+    setStatus(listStatus, `${name} created. New lists start empty and private.`);
+  } catch (error) {
+    console.error(error);
+    setStatus(listStatus, "Could not create the list. Check the Firestore security rules.", true);
+  }
+});
+
 categoryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const name = categoryName.value.trim();
   const weight = Number(categoryWeight.value);
 
+  if (!activeListId) {
+    setStatus(categoryStatus, "Choose or create a meal list first.", true);
+    return;
+  }
   if (!name || !Number.isFinite(weight) || weight <= 0) {
     setStatus(categoryStatus, "Category name and a positive weight are required.", true);
     return;
@@ -328,7 +497,7 @@ categoryForm.addEventListener("submit", async (event) => {
     categoryFilter.value = categoryRef.id;
     renderCategoryEditor();
     renderMeals();
-    setStatus(categoryStatus, `${name} added and selected in ${DEFAULT_LIST_NAME}.`);
+    setStatus(categoryStatus, `${name} added and selected in ${activeListName}.`);
   } catch (error) {
     console.error(error);
     setStatus(categoryStatus, "Could not add the category. Check the Firestore security rules.", true);
@@ -376,6 +545,10 @@ mealForm.addEventListener("submit", async (event) => {
   const name = mealName.value.trim();
   const weight = Number(mealWeight.value);
 
+  if (!activeListId) {
+    setStatus(editorStatus, "Choose or create a meal list first.", true);
+    return;
+  }
   if (!categoryId || !name || !Number.isFinite(weight) || weight <= 0) {
     setStatus(editorStatus, "Meal name, category, and a positive weight are required.", true);
     return;
@@ -417,6 +590,9 @@ onAuthStateChanged(auth, async (user) => {
     adminPanel.hidden = true;
     accountEmail.textContent = "";
     accountUid.textContent = "";
+    ownedLists = [];
+    activeListId = null;
+    activeListName = "";
     return;
   }
 
@@ -424,7 +600,20 @@ onAuthStateChanged(auth, async (user) => {
   adminPanel.hidden = false;
   accountEmail.textContent = user.email ?? "Signed-in user";
   accountUid.textContent = user.uid;
-  if (listNameDisplay) listNameDisplay.textContent = DEFAULT_LIST_NAME;
-  await loadCatalog();
-  resetMealForm();
+
+  try {
+    setStatus(listStatus, "Loading your meal lists…");
+    await loadOwnedLists(user);
+    if (activeListId) {
+      setStatus(listStatus, `Editing ${activeListName}.`);
+    }
+  } catch (error) {
+    console.error(error);
+    ownedLists = [];
+    activeListId = null;
+    activeListName = "";
+    renderListControls();
+    clearCatalogUi();
+    setStatus(listStatus, "Could not load your meal lists. Check the Firestore security rules.", true);
+  }
 });
