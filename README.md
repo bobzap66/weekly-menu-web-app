@@ -2,12 +2,14 @@
 
 A static GitHub Pages dinner planner with Firebase-backed editable meal lists.
 
-## Version 0.10.1 behavior
+## Version 0.10.2 behavior
 
 - Keeps the planner itself on GitHub Pages; there is no custom application server.
 - Stores meal catalogs under Firestore `lists/{listId}/...` documents and subcollections.
 - Lets signed-in users create multiple named meal lists and switch between lists they own.
 - Lets signed-in users duplicate the active list into a new independent private list.
+- Lets signed-in users permanently delete non-default lists after typing the list name to confirm.
+- Protects the public **Family Dinners** default list from deletion.
 - New empty lists start private; duplicated lists also start private.
 - Remembers the active list in browser storage.
 - While signed in, the planner uses the currently selected owned list.
@@ -70,6 +72,8 @@ Manage Meals lists all list documents owned by the signed-in Firebase user. Swit
 
 If the saved active list is no longer accessible, the planner tries the public Family Dinners list. Signed-out users always use Family Dinners regardless of the last private list selected while signed in.
 
+Deleting an active non-default list resets the stored active-list preference to Family Dinners and reloads Manage Meals. If the user does not own Family Dinners, Manage Meals falls back to another owned list when one exists, while the planner can still read Family Dinners as the public fallback.
+
 The app is still pre-alpha, so switching to a different list deliberately clears current local weekly-planning state, recency history, and the Nothing New toggle. This prevents carryovers or test history from one list leaking into another without adding a compatibility layer we do not yet need.
 
 ## Security rules
@@ -79,7 +83,8 @@ The repository includes `firestore.rules`.
 The current access model is:
 
 - A signed-in user may create a list only with their own UID as `ownerUid`.
-- Only the list owner may read the list metadata document or modify/delete the list.
+- Only the list owner may read the list metadata document or modify it.
+- A list owner may delete a list except for the protected `default` list.
 - A list owner may create, edit, and delete that list's categories and meals.
 - Nested categories and meals may be read without authentication only when the parent list has `publicRead: true`.
 - The legacy top-level catalog and all unspecified Firestore paths are denied.
@@ -88,11 +93,15 @@ The Firebase browser configuration is intentionally present in client-side code.
 
 ## Catalog management
 
-The Manage Meals page includes a list selector, a Create List form, and a Duplicate Active List form. Each list has independent categories, meal records, weights, Quick/Big Meal tags, descriptions, recipe links, and Active state.
+The Manage Meals page includes a list selector plus Create, Duplicate, and Delete controls. Each list has independent categories, meal records, weights, Quick/Big Meal tags, descriptions, recipe links, and Active state.
 
 Creating a new list produces an empty private list. Duplicating the active list creates a new private list containing exact copies of the source categories and meals. The copied list is selected automatically after duplication.
 
 List duplication copies documents in bounded Firestore batches so larger catalogs are not tied to a single 500-write transaction. If a copy fails after the destination list is created, the app attempts to remove any copied child documents and the incomplete destination list before reporting the failure.
+
+List deletion also works in bounded batches. The user must type the active list name exactly before the delete button is enabled, then confirm a final browser warning that includes the category and meal counts. Child category and meal documents are deleted first, and the parent list document is deleted last because Firestore does not cascade subcollection deletion. If a child deletion batch fails, the parent list remains so the operation can be retried.
+
+The **Family Dinners** list cannot be deleted through the UI, and the Firestore rules also deny deletion of the `default` parent document because it is the public signed-out fallback.
 
 The catalog browser can be filtered to one category. Selecting a category exposes its current weight and meal count and allows direct editing.
 
