@@ -38,24 +38,25 @@ test("a five-dinner week generates eight candidates", () => {
 
   assert.equal(suggestions.length, 8);
   assert.equal(new Set(suggestions.map((item) => item.categoryId)).size, 8);
+  assert.equal(suggestions.every((item) => typeof item.stableId === "string"), true);
 });
 
 test("carries uneaten meals into a variable candidate pool", () => {
   const carryovers = [
     {
+      stableId: "meal-tacos",
       categoryId: "mexican",
       categoryName: "Mexican",
       mealName: "Tacos",
-      mealKey: "mexican:Tacos",
       quick: true,
       bigMeal: true,
       description: "Taco night",
     },
     {
+      stableId: "meal-ribs",
       categoryId: "bbq",
       categoryName: "BBQ",
       mealName: "Ribs",
-      mealKey: "bbq:Ribs",
       quick: false,
       bigMeal: true,
     },
@@ -70,6 +71,8 @@ test("carries uneaten meals into a variable candidate pool", () => {
   );
 
   assert.equal(suggestions.length, 8);
+  assert.equal(suggestions[0].stableId, "meal-tacos");
+  assert.equal(suggestions[0].mealKey, "meal-tacos");
   assert.equal(suggestions[0].mealName, "Tacos");
   assert.equal(suggestions[0].description, "Taco night");
   assert.equal(suggestions[1].mealName, "Ribs");
@@ -93,10 +96,10 @@ test("combined quick and guest requirements force a both-tagged candidate", () =
 
 test("a both-tagged carryover can satisfy a combined day", () => {
   const carryover = {
+    stableId: "meal-tacos",
     categoryId: "mexican",
     categoryName: "Mexican",
     mealName: "Tacos",
-    mealKey: "mexican:Tacos",
     quick: true,
     bigMeal: true,
   };
@@ -110,6 +113,7 @@ test("a both-tagged carryover can satisfy a combined day", () => {
   );
 
   assert.equal(suggestions.length, 4);
+  assert.equal(suggestions[0].stableId, "meal-tacos");
   assert.equal(suggestions[0].carriedOver, true);
 });
 
@@ -140,4 +144,17 @@ test("Nothing new suppresses generated new recipe and new category ideas", () =>
   assert.equal(suggestions.some((item) => item.newIdea === true), false);
   assert.equal(suggestions.some((item) => item.mealName === "New Recipe"), false);
   assert.equal(suggestions.some((item) => item.mealName === "New Category"), false);
+});
+
+test("carryovers without stable IDs are rejected", () => {
+  assert.throws(
+    () => buildNextWeekSuggestions(
+      menuData,
+      createHistory(),
+      [{ categoryId: "mexican", categoryName: "Mexican", mealName: "Tacos" }],
+      fiveDinnerPlan(),
+      () => 0.42,
+    ),
+    /stable IDs/,
+  );
 });
