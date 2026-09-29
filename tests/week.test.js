@@ -37,6 +37,7 @@ test("carries uneaten meals into a variable candidate pool", () => {
       mealName: "Tacos",
       mealKey: "mexican:Tacos",
       quick: true,
+      bigMeal: true,
     },
     {
       categoryId: "bbq",
@@ -44,6 +45,7 @@ test("carries uneaten meals into a variable candidate pool", () => {
       mealName: "Ribs",
       mealKey: "bbq:Ribs",
       quick: false,
+      bigMeal: true,
     },
   ];
 
@@ -80,6 +82,44 @@ test("quick meal days force enough quick candidates to be generated", () => {
 
   assert.equal(suggestions.length, 6);
   assert.equal(suggestions.filter((item) => item.quick).length >= 2, true);
+});
+
+test("guest days force enough big meal candidates to be generated", () => {
+  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
+  plan.Friday = DAY_TYPES.NORMAL;
+  plan.Saturday = DAY_TYPES.BIG;
+  plan.Sunday = DAY_TYPES.BIG;
+
+  const suggestions = buildNextWeekSuggestions(
+    menuData,
+    createHistory(),
+    [],
+    plan,
+    () => 0.42,
+  );
+
+  assert.equal(suggestions.length, 6);
+  assert.equal(suggestions.filter((item) => item.bigMeal).length >= 2, true);
+});
+
+test("quick and guest days reserve separate qualifying candidates", () => {
+  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
+  plan.Monday = DAY_TYPES.QUICK;
+  plan.Saturday = DAY_TYPES.BIG;
+  plan.Sunday = DAY_TYPES.NORMAL;
+
+  const suggestions = buildNextWeekSuggestions(
+    menuData,
+    createHistory(),
+    [],
+    plan,
+    () => 0.42,
+  );
+
+  assert.equal(suggestions.length, 6);
+  assert.equal(suggestions[0].quick, true);
+  assert.equal(suggestions[1].bigMeal, true);
+  assert.notEqual(suggestions[0].categoryId, suggestions[1].categoryId);
 });
 
 test("a no-cook week does not generate dinner candidates", () => {
