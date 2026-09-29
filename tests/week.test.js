@@ -5,20 +5,34 @@ import { menuData } from "../src/data.js";
 import { createHistory } from "../src/history.js";
 import {
   DAY_TYPES,
+  createPlanningState,
   createWeekPlan,
+  setDayRequirement,
+  setDayType,
 } from "../src/state.js";
 import { buildNextWeekSuggestions } from "../src/week.js";
 
-test("a five-dinner week generates eight candidates", () => {
-  const plan = createWeekPlan();
-  plan.Saturday = DAY_TYPES.LEFTOVERS;
-  plan.Sunday = DAY_TYPES.EATING_OUT;
+function fiveDinnerPlan() {
+  let planning = createPlanningState();
+  planning = setDayType(planning, "Saturday", DAY_TYPES.LEFTOVERS);
+  planning = setDayType(planning, "Sunday", DAY_TYPES.EATING_OUT);
+  return planning.weekPlan;
+}
 
+function combinedSaturdayPlan() {
+  let planning = createPlanningState([], createWeekPlan(DAY_TYPES.NO_MEAL));
+  planning = setDayType(planning, "Saturday", DAY_TYPES.NORMAL);
+  planning = setDayRequirement(planning, "Saturday", "quick", true);
+  planning = setDayRequirement(planning, "Saturday", "bigMeal", true);
+  return planning.weekPlan;
+}
+
+test("a five-dinner week generates eight candidates", () => {
   const suggestions = buildNextWeekSuggestions(
     menuData,
     createHistory(),
     [],
-    plan,
+    fiveDinnerPlan(),
     () => 0.42,
   );
 
@@ -27,9 +41,6 @@ test("a five-dinner week generates eight candidates", () => {
 });
 
 test("carries uneaten meals into a variable candidate pool", () => {
-  const plan = createWeekPlan();
-  plan.Sunday = DAY_TYPES.LEFTOVERS;
-
   const carryovers = [
     {
       categoryId: "mexican",
@@ -38,6 +49,7 @@ test("carries uneaten meals into a variable candidate pool", () => {
       mealKey: "mexican:Tacos",
       quick: true,
       bigMeal: true,
+      description: "Taco night",
     },
     {
       categoryId: "bbq",
@@ -53,73 +65,52 @@ test("carries uneaten meals into a variable candidate pool", () => {
     menuData,
     createHistory(),
     carryovers,
-    plan,
+    fiveDinnerPlan(),
     () => 0.42,
   );
 
-  assert.equal(suggestions.length, 9);
+  assert.equal(suggestions.length, 8);
   assert.equal(suggestions[0].mealName, "Tacos");
+  assert.equal(suggestions[0].description, "Taco night");
   assert.equal(suggestions[1].mealName, "Ribs");
   assert.equal(suggestions[0].carriedOver, true);
   assert.equal(suggestions[1].carriedOver, true);
-  assert.equal(suggestions.filter((item) => item.categoryId === "mexican").length, 1);
-  assert.equal(suggestions.filter((item) => item.categoryId === "bbq").length, 1);
 });
 
-test("quick meal days force enough quick candidates to be generated", () => {
-  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
-  plan.Monday = DAY_TYPES.QUICK;
-  plan.Tuesday = DAY_TYPES.QUICK;
-  plan.Wednesday = DAY_TYPES.NORMAL;
-
+test("combined quick and guest requirements force a both-tagged candidate", () => {
   const suggestions = buildNextWeekSuggestions(
     menuData,
     createHistory(),
     [],
-    plan,
+    combinedSaturdayPlan(),
     () => 0.42,
   );
 
-  assert.equal(suggestions.length, 6);
-  assert.equal(suggestions.filter((item) => item.quick).length >= 2, true);
-});
-
-test("guest days force enough big meal candidates to be generated", () => {
-  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
-  plan.Friday = DAY_TYPES.NORMAL;
-  plan.Saturday = DAY_TYPES.BIG;
-  plan.Sunday = DAY_TYPES.BIG;
-
-  const suggestions = buildNextWeekSuggestions(
-    menuData,
-    createHistory(),
-    [],
-    plan,
-    () => 0.42,
-  );
-
-  assert.equal(suggestions.length, 6);
-  assert.equal(suggestions.filter((item) => item.bigMeal).length >= 2, true);
-});
-
-test("quick and guest days reserve separate qualifying candidates", () => {
-  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
-  plan.Monday = DAY_TYPES.QUICK;
-  plan.Saturday = DAY_TYPES.BIG;
-  plan.Sunday = DAY_TYPES.NORMAL;
-
-  const suggestions = buildNextWeekSuggestions(
-    menuData,
-    createHistory(),
-    [],
-    plan,
-    () => 0.42,
-  );
-
-  assert.equal(suggestions.length, 6);
+  assert.equal(suggestions.length, 4);
   assert.equal(suggestions[0].quick, true);
-  assert.equal(suggestions[1].bigMeal, true);
-  assert.notEqual(suggestions[0].categoryId, suggestions[1].categoryId);
+  assert.equal(suggestions[0].bigMeal, true);
+});
+
+test("a both-tagged carryover can satisfy a combined day", () => {
+  const carryover = {
+    categoryId: "mexican",
+    categoryName: "Mexican",
+    mealName: "Tacos",
+    mealKey: "mexican:Tacos",
+    quick: true,
+    bigMeal: true,
+  };
+
+  const suggestions = buildNextWeekSuggestions(
+    menuData,
+    createHistory(),
+    [carryover],
+    combinedSaturdayPlan(),
+    () => 0.42,
+  );
+
+  assert.equal(suggestions.length, 4);
+  assert.equal(suggestions[0].carriedOver, true);
 });
 
 test("a no-cook week does not generate dinner candidates", () => {
