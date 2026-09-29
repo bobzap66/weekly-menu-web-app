@@ -516,6 +516,30 @@ export function reopenChoices(state) {
   };
 }
 
+export function reopenWeekSetup(state) {
+  if (state.mode === "setup") return state;
+
+  const rejected = new Set(state.rejectedIds);
+  const marked = new Set(state.carryoverIds);
+  const carryovers = [
+    ...state.pendingCarryovers,
+    ...state.candidates.filter(
+      (candidate) =>
+        !rejected.has(candidate.id) &&
+        (candidate.carriedOver === true || marked.has(candidate.id)),
+    ),
+  ];
+  const seen = new Set();
+  const uniqueCarryovers = carryovers.filter((meal) => {
+    const key = meal.mealKey ?? `${meal.categoryId}:${meal.mealName}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return createPlanningState(uniqueCarryovers, state.weekPlan, state.createdAt);
+}
+
 export function isValidMenuState(value) {
   if (
     !value ||
