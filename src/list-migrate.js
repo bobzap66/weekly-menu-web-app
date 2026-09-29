@@ -67,6 +67,7 @@ function buildFingerprint(scan) {
   return JSON.stringify({
     listExists: scan.listExists,
     listOwnerUid: scan.listOwnerUid,
+    listPublicRead: scan.listPublicRead,
     categories: [...scan.sourceCategories.entries()].map(([id, data]) => [id, normalized(data)]),
     meals: [...scan.sourceMeals.entries()].map(([id, data]) => [id, normalized(data)]),
     targetCategories: [...scan.targetCategories.entries()].map(([id, data]) => [id, normalized(data)]),
@@ -99,9 +100,12 @@ async function scanMigration() {
     .map(([id]) => id);
   const listData = listSnapshot.exists() ? listSnapshot.data() : null;
   const listOwnerUid = typeof listData?.ownerUid === "string" ? listData.ownerUid : null;
+  const listPublicRead = listData?.publicRead === true;
   const listOwnerConflict = listSnapshot.exists() && listOwnerUid !== user.uid;
+  const listVisibilityConflict = listSnapshot.exists() && !listPublicRead;
   const safe =
     !listOwnerConflict &&
+    !listVisibilityConflict &&
     invalidStableIds.length === 0 &&
     categoryComparison.conflicting.length === 0 &&
     mealComparison.conflicting.length === 0 &&
@@ -113,7 +117,9 @@ async function scanMigration() {
     listRef,
     listExists: listSnapshot.exists(),
     listOwnerUid,
+    listPublicRead,
     listOwnerConflict,
+    listVisibilityConflict,
     sourceCategories,
     sourceMeals,
     targetCategories,
@@ -158,6 +164,10 @@ function renderScan(scan) {
     scan.categoryComparison.targetOnly.length + scan.mealComparison.targetOnly.length > 0,
   );
   addReportLine(`List ownership conflict: ${scan.listOwnerConflict ? "yes" : "no"}`, scan.listOwnerConflict);
+  addReportLine(
+    `Default list public-readable: ${scan.listExists ? (scan.listPublicRead ? "yes" : "no") : "will be"}`,
+    scan.listVisibilityConflict,
+  );
 
   const writesNeeded =
     (scan.listExists ? 0 : 1) +
@@ -226,6 +236,7 @@ async function applyMigration() {
       await setDoc(scan.listRef, {
         name: DEFAULT_LIST_NAME,
         ownerUid: scan.user.uid,
+        publicRead: true,
         schemaVersion: 1,
         createdAt: serverTimestamp(),
       });
