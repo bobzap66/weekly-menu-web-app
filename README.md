@@ -2,7 +2,7 @@
 
 A static GitHub Pages dinner planner with a small Firebase-backed editable meal catalog.
 
-## Version 0.8.0 behavior
+## Version 0.8.2 behavior
 
 - Keeps the weekly planner itself on GitHub Pages; there is no custom application server.
 - Loads categories and meals from Cloud Firestore when the remote catalog is available.
@@ -19,6 +19,7 @@ A static GitHub Pages dinner planner with a small Firebase-backed editable meal 
 - Lets you return from either candidate selection or the finished schedule to **Edit week setup** if a day was planned incorrectly.
 - Includes the finished-week print workflow for a clean weekly menu printout.
 - Adds a week-level **Nothing new** option.
+- Includes a temporary authenticated migration utility for preparing stable meal IDs.
 
 Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently check **Quick** and **Big Meal / Guests**, so one day can require either tag, both tags, or neither. A day with both boxes checked must receive a meal tagged both Quick and Big Meal.
 
@@ -29,13 +30,21 @@ The public site remains a static GitHub Pages application. Browser-side Firebase
 Firestore uses two collections:
 
 - `categories` — category name, weight, and ordering value.
-- `meals` — category ID, name, weight, `quick`, `bigMeal`, `active`, optional `recipeUrl`, optional `description`, order, and any existing modifiers.
+- `meals` — category ID, name, weight, `quick`, `bigMeal`, `active`, optional `recipeUrl`, optional `description`, order, optional `stableId`, and any existing modifiers.
 
 Reads are public so the normal planner does not require a login. Writes are restricted to explicitly allowed Firebase Authentication UIDs.
 
-New-recipe and new-category prompts are now generator behavior rather than catalog records. Legacy `new-recipe` or `new-category` category documents are ignored by the generator if they still exist.
+New-recipe and new-category prompts are generator behavior rather than catalog records. Legacy `new-recipe` or `new-category` category documents are ignored by the generator if they still exist.
 
 To approve another editor later, manually create that user in Firebase Authentication and add their UID to the array in the Firestore rules.
+
+## Stable meal ID migration
+
+Manage Meals temporarily includes a two-step migration tool. **Preview migration** scans every meal document and reports meals that already use their Firestore document ID as `stableId`, meals missing `stableId`, conflicting values, and duplicate values. Preview never writes data.
+
+**Apply stable IDs** is enabled only after a conflict-free preview. Before writing, it rescans the live collection and refuses to continue if the data changed or identity conflicts appeared. It then adds `stableId` only to meals where it is missing, using the meal document's existing Firestore document ID. It does not rename, move, or delete documents and does not overwrite a conflicting existing ID.
+
+New meals created through Manage Meals automatically receive `stableId` equal to their new Firestore document ID. The migration panel is intended to be removed after the existing catalog has been migrated and verified.
 
 ## Catalog management
 
