@@ -10,6 +10,7 @@ import {
 function carryoverSuggestion(meal) {
   return {
     stableId: meal.stableId,
+    mealKey: meal.stableId,
     categoryId: meal.categoryId,
     categoryName: meal.categoryName,
     mealName: meal.mealName,
