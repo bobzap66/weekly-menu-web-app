@@ -3,29 +3,8 @@ export const MAX_HISTORY_WEEKS = 8;
 
 const RECENCY_MULTIPLIERS = [0.15, 0.35, 0.55, 0.7, 0.82, 0.92];
 
-const LEGACY_MEAL_NAMES = new Map([
-  ["Brocoli Chicken", "Broccoli Chicken"],
-  ["General Tsou", "General Tso's Chicken"],
-  ["Eggrolls (Buffalo Chicken, Cheeseburger, etc)", "Egg Rolls (Buffalo Chicken, Cheeseburger, etc.)"],
-  ["Chicken Parmesean", "Chicken Parmesan"],
-  ["Turkey And Rice", "Turkey and Rice"],
-  ["Salsbury Steak", "Salisbury Steak"],
-  ["New Meat and Sides recipe", "New Meat and Sides Recipe"],
-  ["Shishkababs", "Shish Kebabs"],
-  ["Brautwurst Thing", "Bratwurst Thing"],
-  ["New skillet meal recipe", "New Skillet Meal Recipe"],
-  ["Cajan Pasta Salad", "Cajun Pasta Salad"],
-  ["Misc new Casseroles", "Misc New Casseroles"],
-  ["New seafood recipe", "New Seafood Recipe"],
-]);
-
 export function mealHistoryKey(categoryId, mealName) {
   return `${categoryId}:${mealName}`;
-}
-
-function legacyBaseMealName(mealName) {
-  const baseName = mealName.replace(/ \(gourmet\)$/, "").replace(/ with Hawgbacks$/, "");
-  return LEGACY_MEAL_NAMES.get(baseName) ?? baseName;
 }
 
 export function getMealHistoryKey(meal) {
@@ -33,7 +12,7 @@ export function getMealHistoryKey(meal) {
     return meal.mealKey;
   }
 
-  return mealHistoryKey(meal.categoryId, legacyBaseMealName(meal.mealName));
+  return mealHistoryKey(meal.categoryId, meal.mealName);
 }
 
 export function createHistory() {
