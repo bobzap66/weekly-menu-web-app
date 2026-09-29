@@ -39,6 +39,44 @@
   line-height: 1.55;
 }
 
+.migration-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.migration-body p {
+  margin: 0;
+}
+
+.migration-body code {
+  font-size: 0.9em;
+}
+
+.migration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.migration-report {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  color: #5d564b;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  list-style: none;
+}
+
+.migration-warning {
+  color: #9a2f25;
+}
+
+.migration-detail {
+  overflow-wrap: anywhere;
+}
+
 .admin-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
