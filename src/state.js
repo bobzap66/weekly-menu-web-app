@@ -10,13 +10,14 @@ export function createMenuState(suggestions, createdAt = new Date().toISOString(
   }
 
   return {
-    version: 1,
+    version: 2,
     createdAt,
     candidates: suggestions.map((suggestion, index) => ({
       ...suggestion,
       id: candidateId(suggestion, index),
     })),
     rejectedIds: [],
+    carryoverIds: [],
     finalized: false,
   };
 }
@@ -28,6 +29,7 @@ export function toggleRejection(state, candidateIdValue, maxRejections = MAX_REJ
   }
 
   const rejected = new Set(state.rejectedIds);
+  const carryovers = new Set(state.carryoverIds);
 
   if (rejected.has(candidateIdValue)) {
     rejected.delete(candidateIdValue);
@@ -36,12 +38,14 @@ export function toggleRejection(state, candidateIdValue, maxRejections = MAX_REJ
       return state;
     }
     rejected.add(candidateIdValue);
+    carryovers.delete(candidateIdValue);
   }
 
   const rejectedIds = [...rejected];
   return {
     ...state,
     rejectedIds,
+    carryoverIds: [...carryovers],
     finalized: rejectedIds.length === maxRejections,
   };
 }
@@ -59,6 +63,39 @@ export function getSelectedMeals(state) {
   return state.candidates.filter((candidate) => !rejected.has(candidate.id));
 }
 
+export function toggleCarryover(state, candidateIdValue) {
+  if (!state.finalized) {
+    return state;
+  }
+
+  const selected = new Set(getSelectedMeals(state).map((candidate) => candidate.id));
+  if (!selected.has(candidateIdValue)) {
+    return state;
+  }
+
+  const carryovers = new Set(state.carryoverIds);
+  if (carryovers.has(candidateIdValue)) {
+    carryovers.delete(candidateIdValue);
+  } else {
+    carryovers.add(candidateIdValue);
+  }
+
+  return {
+    ...state,
+    carryoverIds: [...carryovers],
+  };
+}
+
+export function getCarryoverMeals(state) {
+  const carryovers = new Set(state.carryoverIds);
+  return getSelectedMeals(state).filter((candidate) => carryovers.has(candidate.id));
+}
+
+export function getEatenMeals(state) {
+  const carryovers = new Set(state.carryoverIds);
+  return getSelectedMeals(state).filter((candidate) => !carryovers.has(candidate.id));
+}
+
 export function reopenChoices(state) {
   return {
     ...state,
@@ -69,10 +106,11 @@ export function reopenChoices(state) {
 export function isValidMenuState(value) {
   if (
     !value ||
-    value.version !== 1 ||
+    value.version !== 2 ||
     typeof value.createdAt !== "string" ||
     !Array.isArray(value.candidates) ||
     !Array.isArray(value.rejectedIds) ||
+    !Array.isArray(value.carryoverIds) ||
     typeof value.finalized !== "boolean"
   ) {
     return false;
@@ -84,6 +122,11 @@ export function isValidMenuState(value) {
   }
 
   if (!value.rejectedIds.every((id) => candidateIds.has(id)) || value.rejectedIds.length > MAX_REJECTIONS) {
+    return false;
+  }
+
+  const rejected = new Set(value.rejectedIds);
+  if (!value.carryoverIds.every((id) => candidateIds.has(id) && !rejected.has(id))) {
     return false;
   }
 
