@@ -78,7 +78,10 @@ function saveHistory() {
 
 function currentCarryoverCandidates() {
   const rejected = new Set(state.rejectedIds);
-  return state.candidates.filter((candidate) => candidate.carriedOver && !rejected.has(candidate.id));
+  const marked = new Set(state.carryoverIds);
+  return state.candidates.filter(
+    (candidate) => (candidate.carriedOver || marked.has(candidate.id)) && !rejected.has(candidate.id),
+  );
 }
 
 function startFreshWeek() {
@@ -140,8 +143,9 @@ function renderCandidates() {
     const choice = document.createElement("button");
     const content = createMealContent(candidate);
     const isRejected = rejected.has(candidate.id);
+    const isCarriedOver = candidate.carriedOver || state.carryoverIds.includes(candidate.id);
 
-    item.className = `menu-item${isRejected ? " is-rejected" : ""}${candidate.carriedOver ? " is-carried-over" : ""}`;
+    item.className = `menu-item${isRejected ? " is-rejected" : ""}${isCarriedOver ? " is-carried-over" : ""}`;
     choice.className = "meal-choice";
     choice.type = "button";
     choice.setAttribute("aria-pressed", String(isRejected));
@@ -152,7 +156,7 @@ function renderCandidates() {
 
     choice.append(content.mealName, content.categoryName);
 
-    if (candidate.carriedOver && !isRejected) {
+    if (isCarriedOver && !isRejected) {
       choice.append(createCarriedOverLabel());
     }
 
