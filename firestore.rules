@@ -4,7 +4,7 @@ service cloud.firestore {
     function isEditor() {
       return request.auth != null
         && request.auth.uid in [
-          "REPLACE_WITH_YOUR_FIREBASE_UID"
+          "NioS8nIm2RZQnK8XzEQK06YhXwE2"
         ];
     }
 
