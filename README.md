@@ -2,12 +2,13 @@
 
 A static GitHub Pages dinner planner with a small Firebase-backed editable meal catalog.
 
-## Version 0.7.4 behavior
+## Version 0.7.6 behavior
 
 - Keeps the weekly planner itself on GitHub Pages; there is no custom application server.
 - Loads categories and meals from Cloud Firestore when the remote catalog is available.
 - Falls back to the bundled `src/data.js` catalog if Firestore is unavailable.
 - Adds an authenticated **Manage Meals** page for adding, editing, disabling, and deleting meals.
+- Lets approved editors create new meal categories directly from the Manage Meals page.
 - Stores optional `recipeUrl` and short `description` fields with each meal.
 - Displays a meal's description in the planner whenever one exists.
 - Stores meal weight, category, Quick, Big Meal / Guests, and Active settings in Firestore.
@@ -15,6 +16,7 @@ A static GitHub Pages dinner planner with a small Firebase-backed editable meal 
 - Uses a Firestore UID allowlist for write access rather than trusting every authenticated Firebase user.
 - Continues storing the current weekly plan and recency history in browser `localStorage`.
 - Lets you return from either candidate selection or the finished schedule to **Edit week setup** if a day was planned incorrectly.
+- Includes the existing finished-week print workflow for a clean weekly menu printout.
 
 Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently check **Quick** and **Big Meal / Guests**, so one day can require either tag, both tags, or neither. A day with both boxes checked must receive a meal tagged both Quick and Big Meal.
 
@@ -32,6 +34,12 @@ Reads are public so the normal planner does not require a login. Writes are rest
 The initial database migration is complete, so the production admin page now contains only ongoing catalog-management tools rather than one-time seeding or bulk-fill utilities.
 
 To approve another editor later, manually create that user in Firebase Authentication and add their UID to the array in the Firestore rules.
+
+## Catalog management
+
+The Manage Meals page supports ongoing catalog maintenance without repository changes. Editors can add or edit meals, change meal weights and tags, add descriptions and recipe links, deactivate meals, delete meals, and create new categories.
+
+New categories are stored in Firestore with their own weight and ordering value. After a category is created it is immediately available in the meal editor's category dropdown.
 
 ## Security rules
 
