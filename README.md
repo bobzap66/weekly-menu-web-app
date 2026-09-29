@@ -2,20 +2,21 @@
 
 A static GitHub Pages dinner planner with a small Firebase-backed editable meal catalog.
 
-## Version 0.7 behavior
+## Version 0.7.1 behavior
 
 - Keeps the weekly planner itself on GitHub Pages; there is no custom application server.
 - Loads categories and meals from Cloud Firestore when the remote catalog is available.
 - Falls back to the bundled `src/data.js` catalog if Firestore is empty or unavailable.
 - Adds an authenticated **Manage Meals** page for adding, editing, disabling, and deleting meals.
 - Stores optional `recipeUrl` and short `description` fields with each meal.
+- Displays a meal's description in the planner whenever one exists.
 - Stores meal weight, category, Quick, Big Meal / Guests, and Active settings in Firestore.
 - Provides a one-click first-run migration that seeds the current bundled catalog into Firestore.
 - Uses Firebase Authentication for editor sign-in.
 - Uses a Firestore UID allowlist for write access rather than trusting every authenticated Firebase user.
 - Continues storing the current weekly plan and recency history in browser `localStorage`.
 
-The existing planner still supports **Normal Dinner**, **Quick Meal**, **Big Meal / Guests**, **Leftovers**, **Eating Out**, and **No Meal Planned** days. Quick and Guests days are real scheduling requirements, and the generator reserves distinct qualifying meals for them.
+Each day now has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently check **Quick** and **Big Meal / Guests**, so one day can require either tag, both tags, or neither. A day with both boxes checked must receive a meal tagged both Quick and Big Meal.
 
 ## Firebase architecture
 
@@ -28,17 +29,15 @@ Firestore uses two collections:
 
 Reads are public so the normal planner does not require a login. Writes are restricted to explicitly allowed Firebase Authentication UIDs.
 
-## First-time Firebase setup
+## Firebase setup
 
-1. Enable Email/Password Authentication and manually create an approved user in Firebase Authentication.
+1. Enable Email/Password Authentication and manually create approved users in Firebase Authentication.
 2. Add `bobzap66.github.io` to Firebase Authentication's authorized domains if it is not already present.
 3. Create the Firestore database in Production mode.
-4. Open `/manage.html` on the deployed site and sign in.
-5. Copy the UID displayed on the page.
-6. In Firebase Console → Firestore Database → Rules, copy the contents of `firestore.rules`, replace `REPLACE_WITH_YOUR_FIREBASE_UID` with that UID, and publish the rules.
-7. Refresh `/manage.html`, sign in if necessary, and click **Seed current meal catalog**.
+4. Publish the repository's `firestore.rules` contents in Firebase Console → Firestore Database → Rules.
+5. Open `/manage.html`, sign in, and use **Seed current meal catalog** only if the database has not already been seeded.
 
-After the seed finishes, the regular planner will load its meal catalog from Firestore. Future meal edits take effect without changing the repository.
+After the seed finishes, the regular planner loads its meal catalog from Firestore. Future meal edits take effect without changing the repository.
 
 To approve another editor later, manually create that user in Firebase Authentication and add their UID to the array in the Firestore rules.
 
@@ -51,6 +50,14 @@ The repository includes `firestore.rules`. The intended access model is:
 - All other Firestore paths are denied.
 
 The Firebase browser configuration is intentionally present in client-side code. Firebase web configuration values are identifiers, not database passwords; access control comes from Authentication and Firestore Security Rules.
+
+## Weekly planning
+
+The planner always covers Monday through Sunday. Non-dinner days reduce the number of generated dinners. Dinner days may have no tag requirement, Quick only, Big Meal / Guests only, or both.
+
+The generator reserves enough qualifying candidates to make the planned week possible. A combined Quick + Big day can be satisfied by one meal carrying both tags, while separate Quick and Big days still require separate dinner assignments.
+
+Carryovers remain automatic candidates unless explicitly removed, and their Quick/Big tags, descriptions, and recipe links travel with them.
 
 ## Meal history weighting
 
