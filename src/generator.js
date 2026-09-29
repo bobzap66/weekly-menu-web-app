@@ -72,4 +72,3 @@ export function generateMenu(menuData, rng = Math.random) {
 
   return suggestions;
 }
-
