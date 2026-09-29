@@ -6,21 +6,29 @@ import {
 } from "./history.js";
 import {
   DAYS,
-  MAX_REJECTIONS,
+  DAY_TYPE_LABELS,
   assignMealDay,
+  canAssignMealDay,
   clearRejections,
+  countMealDays,
+  countQuickMealDays,
   createMenuState,
+  createPlanningState,
   getCarryoverMeals,
   getEatenMeals,
-  getScheduledMeals,
+  getQuickMealShortfall,
+  getRequiredRejectionCount,
+  getScheduledWeek,
+  isMealDayType,
   isValidMenuState,
   reopenChoices,
+  setDayType,
   toggleCarryover,
   toggleRejection,
 } from "./state.js";
 import { buildNextWeekSuggestions } from "./week.js";
 
-const STORAGE_KEY = "weekly-menu:v3";
+const STORAGE_KEY = "weekly-menu:v4";
 const HISTORY_STORAGE_KEY = "weekly-menu:history:v1";
 
 const menuList = document.querySelector("#menu-list");
@@ -30,18 +38,18 @@ const selectionStatus = document.querySelector("#selection-status");
 const primaryButton = document.querySelector("#primary-button");
 const secondaryButton = document.querySelector("#secondary-button");
 
-function createFreshState(carryoverMeals = []) {
-  return createMenuState(buildNextWeekSuggestions(menuData, history, carryoverMeals));
+function plural(count, singular, pluralForm = `${singular}s`) {
+  return count === 1 ? singular : pluralForm;
 }
 
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (isValidMenuState(saved) && saved.candidates.length === menuData.candidateCount) {
+    if (isValidMenuState(saved)) {
       return saved;
     }
   } catch {
-    // Ignore unavailable storage or malformed saved data and generate a fresh week.
+    // Ignore unavailable storage or malformed saved data and start a fresh planner.
   }
 
   return null;
@@ -79,37 +87,77 @@ function saveHistory() {
 function currentCarryoverCandidates() {
   const rejected = new Set(state.rejectedIds);
   const marked = new Set(state.carryoverIds);
+
   return state.candidates.filter(
     (candidate) => (candidate.carriedOver || marked.has(candidate.id)) && !rejected.has(candidate.id),
   );
 }
 
-function startFreshWeek() {
-  let carryovers = [];
+function beginPlannedWeek() {
+  const suggestions = buildNextWeekSuggestions(
+    menuData,
+    history,
+    state.pendingCarryovers,
+    state.weekPlan,
+  );
+  const deferredCarryovers = countMealDays(state.weekPlan) === 0 ? state.pendingCarryovers : [];
 
-  if (state.finalized) {
-    carryovers = getCarryoverMeals(state);
-    history = addWeekToHistory(history, getEatenMeals(state), state.createdAt);
-    saveHistory();
-  } else {
-    carryovers = currentCarryoverCandidates();
-  }
-
-  state = createFreshState(carryovers);
+  state = createMenuState(suggestions, state.weekPlan, state.createdAt, deferredCarryovers);
   saveState();
   render();
 }
 
+function rerollIdeas() {
+  const carryovers = currentCarryoverCandidates();
+  const suggestions = buildNextWeekSuggestions(
+    menuData,
+    history,
+    carryovers,
+    state.weekPlan,
+  );
+
+  state = createMenuState(suggestions, state.weekPlan, state.createdAt);
+  saveState();
+  render();
+}
+
+function startNextWeek() {
+  const carryovers = getCarryoverMeals(state);
+  history = addWeekToHistory(history, getEatenMeals(state), state.createdAt);
+  saveHistory();
+
+  state = createPlanningState(carryovers);
+  saveState();
+  render();
+}
+
+function createQuickLabel() {
+  const label = document.createElement("span");
+  label.className = "quick-label";
+  label.textContent = "Quick";
+  return label;
+}
+
 function createMealContent(meal) {
+  const wrapper = document.createElement("div");
   const mealName = document.createElement("span");
+  const categoryRow = document.createElement("div");
   const categoryName = document.createElement("span");
 
+  wrapper.className = "meal-name-group";
   mealName.className = "meal-name";
+  categoryRow.className = "meal-meta-row";
   categoryName.className = "category-name";
   mealName.textContent = meal.mealName;
   categoryName.textContent = meal.categoryName;
 
-  return { mealName, categoryName };
+  categoryRow.append(categoryName);
+  if (meal.quick) {
+    categoryRow.append(createQuickLabel());
+  }
+
+  wrapper.append(mealName, categoryRow);
+  return wrapper;
 }
 
 function createCarriedOverLabel() {
@@ -119,29 +167,95 @@ function createCarriedOverLabel() {
   return label;
 }
 
+function createDayTypeSelect(day) {
+  const select = document.createElement("select");
+  select.className = "day-type-select";
+  select.setAttribute("aria-label", `Plan for ${day}`);
+
+  for (const [value, label] of Object.entries(DAY_TYPE_LABELS)) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    option.selected = state.weekPlan[day] === value;
+    select.append(option);
+  }
+
+  select.addEventListener("change", () => {
+    state = setDayType(state, day, select.value);
+    saveState();
+    render();
+  });
+
+  return select;
+}
+
+function renderSetup() {
+  const fragment = document.createDocumentFragment();
+  const mealCount = countMealDays(state.weekPlan);
+  const quickCount = countQuickMealDays(state.weekPlan);
+  const carryoverCount = state.pendingCarryovers.length;
+
+  stepLabel.textContent = "Plan the week";
+  menuHeading.textContent = "What does each day need?";
+
+  const mealSummary = mealCount === 0
+    ? "No cooked dinners are planned yet."
+    : `${mealCount} ${plural(mealCount, "dinner")} planned${quickCount > 0 ? `, including ${quickCount} quick` : ""}.`;
+  const carryoverSummary = carryoverCount > 0
+    ? ` ${carryoverCount} ${plural(carryoverCount, "carryover")} will be included automatically.`
+    : "";
+  selectionStatus.textContent = `${mealSummary}${carryoverSummary}`;
+
+  menuList.className = "week-setup-list";
+
+  for (const day of DAYS) {
+    const item = document.createElement("li");
+    const dayName = document.createElement("span");
+
+    item.className = "setup-day-item";
+    dayName.className = "setup-day-name";
+    dayName.textContent = day;
+    item.append(dayName, createDayTypeSelect(day));
+    fragment.append(item);
+  }
+
+  menuList.replaceChildren(fragment);
+  primaryButton.textContent = mealCount === 0 ? "Use this week structure" : "Generate dinner ideas";
+  secondaryButton.hidden = true;
+}
+
 function renderCandidates() {
   const rejected = new Set(state.rejectedIds);
   const fragment = document.createDocumentFragment();
-
-  stepLabel.textContent = "This week’s candidates";
-  menuHeading.textContent = "Choose seven dinners";
-
+  const mealCount = countMealDays(state.weekPlan);
+  const quickCount = countQuickMealDays(state.weekPlan);
+  const requiredRejections = getRequiredRejectionCount(state);
   const rejectedCount = state.rejectedIds.length;
-  const remaining = MAX_REJECTIONS - rejectedCount;
+  const remaining = requiredRejections - rejectedCount;
+  const quickShortfall = getQuickMealShortfall(state);
   const carryoverCount = currentCarryoverCandidates().length;
 
-  if (rejectedCount === 0) {
-    selectionStatus.textContent = carryoverCount > 0
-      ? `${carryoverCount} ${carryoverCount === 1 ? "dinner was" : "dinners were"} carried over from last week. Tap three meals you do not want this week.`
-      : "Tap three meals you do not want this week. Recent dinners are less likely to repeat.";
+  stepLabel.textContent = "This week’s candidates";
+  menuHeading.textContent = `Choose ${mealCount} ${plural(mealCount, "dinner")}`;
+  menuList.className = "menu-list";
+
+  if (rejectedCount === requiredRejections && quickShortfall > 0) {
+    selectionStatus.textContent = `Your Quick Meal days still need ${quickShortfall} more quick ${plural(quickShortfall, "dinner")}. Restore a quick meal, then remove a non-quick option.`;
   } else {
-    selectionStatus.textContent = `${rejectedCount} of ${MAX_REJECTIONS} removed — choose ${remaining} more.`;
+    const quickSummary = quickCount > 0
+      ? ` The final menu needs at least ${quickCount} quick ${plural(quickCount, "dinner")}.`
+      : "";
+    const carryoverSummary = carryoverCount > 0
+      ? ` ${carryoverCount} ${plural(carryoverCount, "dinner")} carried over automatically.`
+      : "";
+    selectionStatus.textContent = remaining > 0
+      ? `Remove ${remaining} more ${plural(remaining, "meal")}.${quickSummary}${carryoverSummary}`
+      : `Your selections are ready.${quickSummary}${carryoverSummary}`;
   }
 
   for (const candidate of state.candidates) {
     const item = document.createElement("li");
     const choice = document.createElement("button");
-    const content = createMealContent(candidate);
     const isRejected = rejected.has(candidate.id);
     const isCarriedOver = candidate.carriedOver || state.carryoverIds.includes(candidate.id);
 
@@ -154,7 +268,7 @@ function renderCandidates() {
       `${isRejected ? "Restore" : "Remove"} ${candidate.mealName}, ${candidate.categoryName}`,
     );
 
-    choice.append(content.mealName, content.categoryName);
+    choice.append(createMealContent(candidate));
 
     if (isCarriedOver && !isRejected) {
       choice.append(createCarriedOverLabel());
@@ -178,7 +292,7 @@ function renderCandidates() {
   }
 
   menuList.replaceChildren(fragment);
-  primaryButton.textContent = carryoverCount > 0 ? "Reroll other ideas" : "Roll 10 new ideas";
+  primaryButton.textContent = carryoverCount > 0 ? "Reroll other ideas" : "Roll new ideas";
   secondaryButton.textContent = "Clear removals";
   secondaryButton.hidden = rejectedCount === 0;
 }
@@ -188,11 +302,12 @@ function createDaySelect(meal, currentDay) {
   select.className = "day-select";
   select.setAttribute("aria-label", `Day for ${meal.mealName}`);
 
-  for (const day of DAYS) {
+  for (const day of DAYS.filter((candidateDay) => isMealDayType(state.weekPlan[candidateDay]))) {
     const option = document.createElement("option");
     option.value = day;
     option.textContent = day;
     option.selected = day === currentDay;
+    option.disabled = day !== currentDay && !canAssignMealDay(state, meal.id, day);
     select.append(option);
   }
 
@@ -222,53 +337,90 @@ function createCarryoverToggle(meal) {
   return button;
 }
 
-function renderFinalMenu() {
+function renderScheduledWeek() {
   const fragment = document.createDocumentFragment();
-  const carryoverCount = state.carryoverIds.length;
+  const mealCount = countMealDays(state.weekPlan);
+  const carryoverCount = getCarryoverMeals(state).length;
 
-  stepLabel.textContent = "This week’s menu";
-  menuHeading.textContent = "Seven dinners, scheduled";
+  stepLabel.textContent = "This week’s plan";
+  menuHeading.textContent = mealCount > 0
+    ? `${mealCount} ${plural(mealCount, "dinner")}, scheduled`
+    : "Week planned";
   selectionStatus.textContent = carryoverCount > 0
-    ? `${carryoverCount} ${carryoverCount === 1 ? "dinner is" : "dinners are"} marked to carry into next week. Change days anytime.`
-    : "Assign each dinner to a day. If you do not get to one, mark it to carry into next week.";
+    ? `${carryoverCount} ${plural(carryoverCount, "dinner")} marked to carry forward. Quick Meal days are locked to quick-tagged dinners.`
+    : mealCount > 0
+      ? "Quick Meal days are matched to quick-tagged dinners. Move meals between compatible days anytime."
+      : "No cooked dinners are scheduled this week.";
 
-  for (const { day, meal } of getScheduledMeals(state)) {
+  menuList.className = "week-schedule-list";
+
+  for (const { day, type, meal } of getScheduledWeek(state)) {
     const item = document.createElement("li");
-    const content = document.createElement("div");
-    const topRow = document.createElement("div");
-    const mealContent = createMealContent(meal);
+    const heading = document.createElement("div");
+    const dayName = document.createElement("span");
+    const typeLabel = document.createElement("span");
 
-    item.className = "menu-item final-item";
-    content.className = "meal-content scheduled-content";
-    topRow.className = "scheduled-top-row";
-    topRow.append(createDaySelect(meal, day));
+    item.className = `schedule-day-item${meal ? "" : " nonmeal-day"}`;
+    heading.className = "schedule-day-heading";
+    dayName.className = "schedule-day-name";
+    dayName.textContent = day;
+    typeLabel.className = `day-type-badge day-type-${type}`;
+    typeLabel.textContent = DAY_TYPE_LABELS[type];
+    heading.append(dayName, typeLabel);
+    item.append(heading);
 
-    const nameGroup = document.createElement("div");
-    nameGroup.className = "meal-name-group";
-    nameGroup.append(mealContent.mealName, mealContent.categoryName);
+    if (meal) {
+      const mealRow = document.createElement("div");
+      const controls = document.createElement("div");
 
-    content.append(topRow, nameGroup, createCarryoverToggle(meal));
-    item.append(content);
+      mealRow.className = "scheduled-meal-row";
+      controls.className = "scheduled-controls";
+      mealRow.append(createMealContent(meal));
+      controls.append(createDaySelect(meal, day), createCarryoverToggle(meal));
+      item.append(mealRow, controls);
+    } else {
+      const note = document.createElement("p");
+      note.className = "nonmeal-note";
+      note.textContent = DAY_TYPE_LABELS[type];
+      item.append(note);
+    }
+
     fragment.append(item);
   }
 
   menuList.replaceChildren(fragment);
   primaryButton.textContent = "Start next week";
   secondaryButton.textContent = "Change choices";
-  secondaryButton.hidden = false;
+  secondaryButton.hidden = mealCount === 0;
 }
 
 function render() {
-  if (state.finalized) {
-    renderFinalMenu();
-  } else {
+  if (state.mode === "setup") {
+    renderSetup();
+  } else if (state.mode === "choosing") {
     renderCandidates();
+  } else {
+    renderScheduledWeek();
   }
 }
 
-primaryButton.addEventListener("click", startFreshWeek);
+primaryButton.addEventListener("click", () => {
+  if (state.mode === "setup") {
+    beginPlannedWeek();
+  } else if (state.mode === "choosing") {
+    rerollIdeas();
+  } else {
+    startNextWeek();
+  }
+});
+
 secondaryButton.addEventListener("click", () => {
-  state = state.finalized ? reopenChoices(state) : clearRejections(state);
+  if (state.mode === "choosing") {
+    state = clearRejections(state);
+  } else if (state.mode === "scheduled") {
+    state = reopenChoices(state);
+  }
+
   saveState();
   render();
 });
@@ -276,7 +428,7 @@ secondaryButton.addEventListener("click", () => {
 let history = loadHistory();
 let state = loadState();
 if (!state) {
-  state = createFreshState();
+  state = createPlanningState();
   saveState();
 }
 render();
