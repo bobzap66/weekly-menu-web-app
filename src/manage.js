@@ -24,6 +24,10 @@ const accountEmail = document.querySelector("#account-email");
 const accountUid = document.querySelector("#account-uid");
 const copyUidButton = document.querySelector("#copy-uid-button");
 const signOutButton = document.querySelector("#sign-out-button");
+const categoryForm = document.querySelector("#category-form");
+const categoryName = document.querySelector("#category-name");
+const categoryWeight = document.querySelector("#category-weight");
+const categoryStatus = document.querySelector("#category-status");
 const mealForm = document.querySelector("#meal-form");
 const mealId = document.querySelector("#meal-id");
 const mealName = document.querySelector("#meal-name");
@@ -124,8 +128,8 @@ function renderMeals() {
   const filtered = meals
     .filter((meal) => {
       if (!query) return true;
-      const categoryName = categoryById.get(meal.categoryId)?.name ?? "";
-      return `${meal.name} ${categoryName} ${meal.description ?? ""}`.toLowerCase().includes(query);
+      const categoryNameValue = categoryById.get(meal.categoryId)?.name ?? "";
+      return `${meal.name} ${categoryNameValue} ${meal.description ?? ""}`.toLowerCase().includes(query);
     })
     .sort((a, b) => {
       const categoryOrderA = categoryById.get(a.categoryId)?.order ?? 0;
@@ -249,6 +253,42 @@ copyUidButton.addEventListener("click", async () => {
     }, 1500);
   } catch {
     setStatus(editorStatus, "Could not copy automatically. Select the UID text and copy it manually.", true);
+  }
+});
+
+categoryForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const name = categoryName.value.trim();
+  const weight = Number(categoryWeight.value);
+
+  if (!name || !Number.isFinite(weight) || weight <= 0) {
+    setStatus(categoryStatus, "Category name and a positive weight are required.", true);
+    return;
+  }
+
+  if (categories.some((category) => String(category.name ?? "").trim().toLowerCase() === name.toLowerCase())) {
+    setStatus(categoryStatus, `A category named ${name} already exists.`, true);
+    return;
+  }
+
+  const maxOrder = categories.reduce((max, category) => Math.max(max, Number(category.order) || 0), -1);
+
+  try {
+    const categoryRef = await addDoc(collection(db, "categories"), {
+      name,
+      weight,
+      order: maxOrder + 1,
+    });
+
+    await loadCatalog();
+    categoryForm.reset();
+    categoryWeight.value = "1";
+    populateCategorySelect(categoryRef.id);
+    setStatus(categoryStatus, `${name} added and selected in the meal editor.`);
+  } catch (error) {
+    console.error(error);
+    setStatus(categoryStatus, "Could not add the category. Check the Firestore security rules.", true);
   }
 });
 
