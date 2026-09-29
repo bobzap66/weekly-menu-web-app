@@ -30,4 +30,3 @@ npm test
 ```
 
 No package installation is required.
-
