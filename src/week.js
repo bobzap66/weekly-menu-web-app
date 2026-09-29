@@ -15,6 +15,8 @@ function carryoverSuggestion(meal) {
     mealKey: meal.mealKey,
     quick: meal.quick === true,
     bigMeal: meal.bigMeal === true,
+    recipeUrl: typeof meal.recipeUrl === "string" ? meal.recipeUrl : "",
+    description: typeof meal.description === "string" ? meal.description : "",
     carriedOver: true,
   };
 }
