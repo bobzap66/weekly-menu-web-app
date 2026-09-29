@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Sign in to manage the Weekly Menu meal catalog." />
+    <title>Manage Meals — Weekly Menu</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./manage.css" />
+  </head>
+  <body>
+    <main class="app-shell admin-shell">
+      <header class="hero admin-hero">
+        <p class="eyebrow">Weekly Menu</p>
+        <h1>Manage Meals</h1>
+        <p class="intro">Add and edit meals without changing the GitHub repository.</p>
+        <p class="admin-nav"><a href="./">← Back to weekly planner</a></p>
+      </header>
+
+      <section id="login-panel" class="menu-card admin-card" aria-labelledby="login-heading">
+        <div class="admin-section-heading">
+          <div>
+            <p class="step-label">Account</p>
+            <h2 id="login-heading">Sign in</h2>
+          </div>
+        </div>
+        <form id="login-form" class="admin-form compact-form">
+          <label>
+            <span>Email</span>
+            <input id="login-email" type="email" autocomplete="username" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="login-password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="action-button primary-button" type="submit">Sign in</button>
+        </form>
+        <p id="login-status" class="admin-status" aria-live="polite"></p>
+      </section>
+
+      <section id="admin-panel" hidden>
+        <section class="menu-card admin-card account-card">
+          <div class="account-row">
+            <div>
+              <p class="step-label">Signed in</p>
+              <p id="account-email" class="account-email"></p>
+              <p class="uid-line">UID: <code id="account-uid"></code></p>
+            </div>
+            <div class="action-row">
+              <button id="copy-uid-button" class="action-button secondary-button" type="button">Copy UID</button>
+              <button id="sign-out-button" class="action-button secondary-button" type="button">Sign out</button>
+            </div>
+          </div>
+          <p class="admin-help">Use this UID in the Firestore security rules allowlist. The editor intentionally has no public sign-up screen.</p>
+        </section>
+
+        <section id="seed-card" class="menu-card admin-card" hidden>
+          <div class="admin-section-heading">
+            <div>
+              <p class="step-label">First-time setup</p>
+              <h2>Seed the database</h2>
+            </div>
+          </div>
+          <div class="admin-section-body">
+            <p>The Firestore catalog is empty. Copy the current bundled categories and meals into the database in one batch.</p>
+            <button id="seed-button" class="action-button primary-button" type="button">Seed current meal catalog</button>
+          </div>
+        </section>
+
+        <section class="menu-card admin-card" aria-labelledby="editor-heading">
+          <div class="admin-section-heading">
+            <div>
+              <p class="step-label">Meal editor</p>
+              <h2 id="editor-heading">Add or edit a meal</h2>
+            </div>
+          </div>
+          <form id="meal-form" class="admin-form meal-form">
+            <input id="meal-id" type="hidden" />
+            <label class="wide-field">
+              <span>Meal name</span>
+              <input id="meal-name" type="text" maxlength="120" required />
+            </label>
+            <label>
+              <span>Category</span>
+              <select id="meal-category" required></select>
+            </label>
+            <label>
+              <span>Weight</span>
+              <input id="meal-weight" type="number" min="0.01" step="0.01" value="1" required />
+            </label>
+            <label class="wide-field">
+              <span>Recipe link <small>(optional)</small></span>
+              <input id="meal-recipe-url" type="url" placeholder="https://…" />
+            </label>
+            <label class="wide-field">
+              <span>Short description <small>(optional)</small></span>
+              <textarea id="meal-description" maxlength="280" rows="3"></textarea>
+            </label>
+            <div class="checkbox-row wide-field">
+              <label class="checkbox-label"><input id="meal-quick" type="checkbox" /> Quick meal</label>
+              <label class="checkbox-label"><input id="meal-big" type="checkbox" /> Big meal / guests</label>
+              <label class="checkbox-label"><input id="meal-active" type="checkbox" checked /> Active</label>
+            </div>
+            <div class="form-actions wide-field">
+              <button class="action-button primary-button" type="submit">Save meal</button>
+              <button id="cancel-edit-button" class="action-button secondary-button" type="button" hidden>Cancel edit</button>
+            </div>
+          </form>
+          <p id="editor-status" class="admin-status" aria-live="polite"></p>
+        </section>
+
+        <section class="menu-card admin-card" aria-labelledby="catalog-heading">
+          <div class="admin-section-heading catalog-heading-row">
+            <div>
+              <p class="step-label">Catalog</p>
+              <h2 id="catalog-heading">Meals</h2>
+            </div>
+            <label class="search-field">
+              <span class="sr-only">Search meals</span>
+              <input id="meal-search" type="search" placeholder="Search meals…" />
+            </label>
+          </div>
+          <p id="catalog-status" class="selection-status" aria-live="polite"></p>
+          <div id="meal-catalog" class="admin-meal-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./src/manage.js"></script>
+  </body>
+</html>
