@@ -24,7 +24,10 @@ service cloud.firestore {
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.ownerUid == resource.data.ownerUid;
 
-      allow delete: if request.auth != null
+      // The default Family Dinners document is the public signed-out fallback,
+      // so protect the parent list from accidental deletion even by its owner.
+      allow delete: if listId != "default"
+        && request.auth != null
         && resource.data.ownerUid == request.auth.uid;
 
       match /categories/{categoryId} {
