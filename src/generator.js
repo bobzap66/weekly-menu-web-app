@@ -1,3 +1,5 @@
+import { getHistoryWeightMultiplier, mealHistoryKey } from "./history.js";
+
 function assertWeightedItems(items, label) {
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error(`${label} must contain at least one item.`);
@@ -34,7 +36,18 @@ function applyModifiers(meal, rng) {
   return [meal.name, ...applied].join(" ");
 }
 
-export function generateMenu(menuData, rng = Math.random) {
+function mealsWithHistoryWeights(category, history) {
+  return category.meals.map((meal) => {
+    const mealKey = mealHistoryKey(category.id, meal.name);
+    return {
+      ...meal,
+      mealKey,
+      weight: meal.weight * getHistoryWeightMultiplier(mealKey, history),
+    };
+  });
+}
+
+export function generateMenu(menuData, rng = Math.random, history = null) {
   const candidateCount = menuData.candidateCount;
   const categoryPool = [...menuData.categories];
 
@@ -58,15 +71,17 @@ export function generateMenu(menuData, rng = Math.random) {
         categoryId: category.id,
         categoryName: category.name,
         mealName: category.result,
+        mealKey: mealHistoryKey(category.id, category.result),
       });
       continue;
     }
 
-    const meal = chooseWeighted(category.meals, rng);
+    const meal = chooseWeighted(mealsWithHistoryWeights(category, history), rng);
     suggestions.push({
       categoryId: category.id,
       categoryName: category.name,
       mealName: applyModifiers(meal, rng),
+      mealKey: meal.mealKey,
     });
   }
 
