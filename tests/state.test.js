@@ -24,6 +24,7 @@ import {
   getSelectedMeals,
   isValidMenuState,
   reopenChoices,
+  reopenWeekSetup,
   setDayRequirement,
   setDayType,
   toggleCarryover,
@@ -211,6 +212,30 @@ test("reopening a scheduled menu returns to choosing", () => {
 
   assert.equal(state.mode, "choosing");
   assert.deepEqual(state.dayAssignments, {});
+});
+
+test("reopening week setup preserves carryovers but clears generated choices", () => {
+  const suggestions = makeSuggestions(10);
+  suggestions[0] = {
+    ...suggestions[0],
+    carriedOver: true,
+    description: "Previous week's dinner",
+  };
+
+  let state = createMenuState(suggestions, createWeekPlan());
+  state = finalize(state);
+  const extraCarryover = getSelectedMeals(state)[1];
+  state = toggleCarryover(state, extraCarryover.id);
+  state = reopenWeekSetup(state);
+
+  assert.equal(state.mode, "setup");
+  assert.equal(state.candidates.length, 0);
+  assert.equal(state.rejectedIds.length, 0);
+  assert.equal(Object.keys(state.dayAssignments).length, 0);
+  assert.equal(state.pendingCarryovers.length, 2);
+  assert.equal(state.pendingCarryovers.some((meal) => meal.mealKey === suggestions[0].mealKey), true);
+  assert.equal(state.pendingCarryovers.some((meal) => meal.mealKey === extraCarryover.mealKey), true);
+  assert.equal(isValidMenuState(state), true);
 });
 
 test("zero-cook weeks preserve pending carryovers", () => {
