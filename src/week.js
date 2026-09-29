@@ -66,6 +66,7 @@ export function buildNextWeekSuggestions(
   carryoverMeals = [],
   weekPlan,
   rng = Math.random,
+  options = {},
 ) {
   if (!Array.isArray(carryoverMeals)) {
     throw new Error("Carryover meals must be an array.");
@@ -97,6 +98,7 @@ export function buildNextWeekSuggestions(
     minimumBothCount: bothRemaining,
     minimumQuickCount: quickRemaining,
     minimumBigMealCount: bigRemaining,
+    allowNew: options.nothingNew !== true,
   });
 
   return [...carryovers, ...generated];
