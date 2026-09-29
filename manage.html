@@ -6,7 +6,7 @@
     <meta name="description" content="Sign in to manage Weekly Menu meal lists." />
     <title>Manage Meals — Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./manage.css?v=0.10.0" />
+    <link rel="stylesheet" href="./manage.css?v=0.10.1" />
   </head>
   <body>
     <main class="app-shell admin-shell">
@@ -59,7 +59,7 @@
           <div class="admin-section-heading">
             <div>
               <p class="step-label">Meal lists</p>
-              <h2 id="lists-heading">Choose or create a list</h2>
+              <h2 id="lists-heading">Choose, create, or duplicate a list</h2>
             </div>
           </div>
           <div class="list-management-grid">
@@ -69,15 +69,24 @@
                 <option value="">Loading lists…</option>
               </select>
             </label>
-            <form id="create-list-form" class="create-list-form">
-              <label>
-                <span>New list name</span>
-                <input id="new-list-name" type="text" maxlength="80" placeholder="Weeknight Dinners" required />
-              </label>
-              <button class="action-button primary-button" type="submit">Create list</button>
-            </form>
+            <div class="list-actions-stack">
+              <form id="create-list-form" class="create-list-form">
+                <label>
+                  <span>New empty list</span>
+                  <input id="new-list-name" type="text" maxlength="80" placeholder="Weeknight Dinners" required />
+                </label>
+                <button class="action-button primary-button" type="submit">Create list</button>
+              </form>
+              <form id="duplicate-list-form" class="duplicate-list-form">
+                <label>
+                  <span>Copy active list as</span>
+                  <input id="duplicate-list-name" type="text" maxlength="80" required />
+                </label>
+                <button id="duplicate-list-button" class="action-button secondary-button" type="submit">Duplicate active list</button>
+              </form>
+            </div>
           </div>
-          <p class="admin-help">New lists start empty and private. Family Dinners remains public-readable so the signed-out planner still has a default catalog.</p>
+          <p class="admin-help">New lists start empty and private. Duplicated lists also start private and copy every category and meal from the active list while preserving their IDs inside the new list. Family Dinners remains public-readable so the signed-out planner still has a default catalog.</p>
           <p id="list-status" class="admin-status" aria-live="polite"></p>
         </section>
 
@@ -188,6 +197,6 @@
       </section>
     </main>
 
-    <script type="module" src="./src/manage-list.js?v=0.10.0"></script>
+    <script type="module" src="./src/manage-list.js?v=0.10.1"></script>
   </body>
 </html>
