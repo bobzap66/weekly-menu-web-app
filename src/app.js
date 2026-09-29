@@ -37,6 +37,7 @@ import { buildNextWeekSuggestions } from "./week.js";
 
 const STORAGE_KEY = "weekly-menu:v6";
 const HISTORY_STORAGE_KEY = "weekly-menu:history:v1";
+const NOTHING_NEW_STORAGE_KEY = "weekly-menu:nothing-new";
 
 const menuList = document.querySelector("#menu-list");
 const stepLabel = document.querySelector("#step-label");
@@ -72,6 +73,14 @@ function loadHistory() {
   return createHistory();
 }
 
+function loadNothingNew() {
+  try {
+    return localStorage.getItem(NOTHING_NEW_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -85,6 +94,14 @@ function saveHistory() {
     localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
   } catch {
     // The app still works without history if storage is unavailable.
+  }
+}
+
+function saveNothingNew() {
+  try {
+    localStorage.setItem(NOTHING_NEW_STORAGE_KEY, String(nothingNew));
+  } catch {
+    // The app still works without persistence if storage is unavailable.
   }
 }
 
@@ -103,6 +120,8 @@ function beginPlannedWeek() {
     history,
     state.pendingCarryovers,
     state.weekPlan,
+    Math.random,
+    { nothingNew },
   );
   const deferredCarryovers = countMealDays(state.weekPlan) === 0 ? state.pendingCarryovers : [];
 
@@ -118,6 +137,8 @@ function rerollIdeas() {
     history,
     carryovers,
     state.weekPlan,
+    Math.random,
+    { nothingNew },
   );
 
   state = createMenuState(suggestions, state.weekPlan, state.createdAt);
@@ -130,6 +151,8 @@ function startNextWeek() {
   history = addWeekToHistory(history, getEatenMeals(state), state.createdAt);
   saveHistory();
 
+  nothingNew = false;
+  saveNothingNew();
   state = createPlanningState(carryovers);
   saveState();
   render();
@@ -237,6 +260,37 @@ function createDayPlanControls(day) {
   return wrapper;
 }
 
+function createNothingNewControl() {
+  const item = document.createElement("li");
+  const text = document.createElement("div");
+  const title = document.createElement("span");
+  const note = document.createElement("span");
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+
+  item.className = "setup-week-option-item";
+  text.className = "setup-week-option-text";
+  title.className = "setup-day-name";
+  title.textContent = "Nothing new";
+  note.className = "setup-week-option-note";
+  note.textContent = "Skip new-recipe and new-category suggestions for this week.";
+  label.className = "requirement-check nothing-new-check";
+  input.type = "checkbox";
+  input.checked = nothingNew;
+  input.setAttribute("aria-label", "Nothing new this week");
+
+  input.addEventListener("change", () => {
+    nothingNew = input.checked;
+    saveNothingNew();
+    render();
+  });
+
+  label.append(input, document.createTextNode("Nothing new"));
+  text.append(title, note);
+  item.append(text, label);
+  return item;
+}
+
 function renderSetup() {
   const fragment = document.createDocumentFragment();
   const mealCount = countMealDays(state.weekPlan);
@@ -258,9 +312,11 @@ function renderSetup() {
   const carryoverSummary = carryoverCount > 0
     ? ` ${carryoverCount} ${plural(carryoverCount, "carryover")} will be included automatically.`
     : "";
-  selectionStatus.textContent = `${mealSummary}${carryoverSummary}`;
+  const newIdeaSummary = nothingNew ? " New ideas are turned off for this week." : "";
+  selectionStatus.textContent = `${mealSummary}${carryoverSummary}${newIdeaSummary}`;
 
   menuList.className = "week-setup-list";
+  fragment.append(createNothingNewControl());
 
   for (const day of DAYS) {
     const item = document.createElement("li");
@@ -517,6 +573,7 @@ tertiaryButton.addEventListener("click", () => {
 });
 
 let history = loadHistory();
+let nothingNew = loadNothingNew();
 let state = loadState();
 if (!state) {
   state = createPlanningState();
