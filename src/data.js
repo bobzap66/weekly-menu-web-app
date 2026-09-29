@@ -70,7 +70,6 @@ export const menuData = {
         { name: "London Broil", weight: 1, quick: false, bigMeal: true },
         { name: "Salisbury Steak", weight: 1, quick: false, bigMeal: true },
         { name: "Hawaiian Chicken", weight: 2, quick: false, bigMeal: true },
-        { name: "New Meat and Sides Recipe", weight: 2, quick: false, bigMeal: false },
       ],
     },
     {
@@ -91,7 +90,6 @@ export const menuData = {
         { name: "Pork Loin", weight: 2, quick: false, bigMeal: true },
         { name: "Beer Chicken", weight: 2, quick: false, bigMeal: true },
         { name: "Shish Kebabs", weight: 2, quick: false, bigMeal: true },
-        { name: "New BBQ Recipe", weight: 1, quick: false, bigMeal: false },
       ],
     },
     {
@@ -120,7 +118,6 @@ export const menuData = {
         { name: "Skillet Pork Chops with Apples and Onion", weight: 1, quick: true, bigMeal: true },
         { name: "Beef Tenderloin in Mushroom Sauce", weight: 1, quick: false, bigMeal: false },
         { name: "Mexi-Mac Skillet", weight: 1, quick: true, bigMeal: true },
-        { name: "New Skillet Meal Recipe", weight: 1, quick: false, bigMeal: false },
       ],
     },
     {
@@ -175,7 +172,6 @@ export const menuData = {
         { name: "Chicken Pot Pie", weight: 1, quick: false, bigMeal: true },
         { name: "Chicken Casserole", weight: 1, quick: false, bigMeal: true },
         { name: "Hamburger Helper", weight: 1, quick: true, bigMeal: true },
-        { name: "Misc New Casseroles", weight: 1, quick: false, bigMeal: true },
         { name: "Tater Tot Casserole", weight: 1, quick: false, bigMeal: true },
       ],
     },
@@ -188,7 +184,6 @@ export const menuData = {
         { name: "Krystals", weight: 1, quick: true, bigMeal: true },
         { name: "Giant McRib", weight: 1, quick: false, bigMeal: true },
         { name: "Poor Man Monte Cristo", weight: 1, quick: true, bigMeal: false },
-        { name: "New Fast Food Recipe", weight: 1, quick: false, bigMeal: false },
       ],
     },
     {
@@ -213,7 +208,6 @@ export const menuData = {
         { name: "Grilled Fish", weight: 2, quick: true, bigMeal: true },
         { name: "Fish Tacos", weight: 2, quick: true, bigMeal: true },
         { name: "Surf and Turf", weight: 1, quick: false, bigMeal: false },
-        { name: "New Seafood Recipe", weight: 1, quick: false, bigMeal: false },
       ],
     },
     {
@@ -226,22 +220,6 @@ export const menuData = {
         { name: "House Salad", weight: 1, quick: true, bigMeal: false },
         { name: "Taco Salad", weight: 2, quick: true, bigMeal: true },
       ],
-    },
-    {
-      id: "new-recipe",
-      name: "New Recipe",
-      weight: 2,
-      result: "New Recipe",
-      quick: false,
-      bigMeal: false,
-    },
-    {
-      id: "new-category",
-      name: "New Category",
-      weight: 1,
-      result: "New Category",
-      quick: false,
-      bigMeal: false,
     },
   ],
 };
