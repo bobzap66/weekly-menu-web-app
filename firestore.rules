@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isEditor() {
+      return request.auth != null
+        && request.auth.uid in [
+          "REPLACE_WITH_YOUR_FIREBASE_UID"
+        ];
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isEditor();
+    }
+
+    match /meals/{mealId} {
+      allow read: if true;
+      allow create, update, delete: if isEditor();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
