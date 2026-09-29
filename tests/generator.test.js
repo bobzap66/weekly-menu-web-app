@@ -12,7 +12,7 @@ test("generates ten suggestions from ten distinct categories", () => {
   assert.equal(new Set(categoryIds).size, 10);
 });
 
-test("every menu result declares whether it is a quick meal", () => {
+test("every menu result declares quick and big meal tags", () => {
   for (const category of menuData.categories) {
     if (category.meals) {
       for (const meal of category.meals) {
@@ -21,12 +21,22 @@ test("every menu result declares whether it is a quick meal", () => {
           "boolean",
           `${category.name} / ${meal.name} must declare quick: true or false`,
         );
+        assert.equal(
+          typeof meal.bigMeal,
+          "boolean",
+          `${category.name} / ${meal.name} must declare bigMeal: true or false`,
+        );
       }
     } else {
       assert.equal(
         typeof category.quick,
         "boolean",
         `${category.name} must declare quick: true or false`,
+      );
+      assert.equal(
+        typeof category.bigMeal,
+        "boolean",
+        `${category.name} must declare bigMeal: true or false`,
       );
     }
   }
@@ -52,7 +62,7 @@ test("weighted selection respects item boundaries", () => {
   assert.equal(chooseWeighted(items, () => 0.26).name, "three");
 });
 
-test("applies a guaranteed modifier", () => {
+test("applies a guaranteed modifier and preserves meal tags", () => {
   const fixture = {
     candidateCount: 1,
     categories: [
@@ -65,6 +75,7 @@ test("applies a guaranteed modifier", () => {
             name: "Dinner",
             weight: 1,
             quick: true,
+            bigMeal: true,
             modifiers: [{ text: "with a modifier", chance: 1 }],
           },
         ],
@@ -75,6 +86,7 @@ test("applies a guaranteed modifier", () => {
   const result = generateMenu(fixture, () => 0)[0];
   assert.equal(result.mealName, "Dinner with a modifier");
   assert.equal(result.quick, true);
+  assert.equal(result.bigMeal, true);
 });
 
 test("recent meal history makes a repeated meal less likely", () => {
@@ -86,8 +98,8 @@ test("recent meal history makes a repeated meal less likely", () => {
         name: "Test",
         weight: 1,
         meals: [
-          { name: "Recent Dinner", weight: 1, quick: true },
-          { name: "Other Dinner", weight: 1, quick: true },
+          { name: "Recent Dinner", weight: 1, quick: true, bigMeal: true },
+          { name: "Other Dinner", weight: 1, quick: true, bigMeal: false },
         ],
       },
     ],
