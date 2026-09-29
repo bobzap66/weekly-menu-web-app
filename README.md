@@ -1,90 +1,99 @@
 # Weekly Menu
 
-A static GitHub Pages dinner planner with a small Firebase-backed editable meal catalog.
+A static GitHub Pages dinner planner with a Firebase-backed editable meal catalog.
 
-## Version 0.9.0 behavior
+## Version 0.9.3 behavior
 
-- Keeps the weekly planner itself on GitHub Pages; there is no custom application server.
-- Loads categories and meals from Cloud Firestore when the remote catalog is available.
-- Falls back to the bundled `src/data.js` catalog if Firestore is unavailable.
-- Adds an authenticated **Manage Meals** page for adding, editing, disabling, and deleting meals.
-- Lets approved editors create categories, browse meals by category, and edit category names and weights.
-- Shows each meal's weight while browsing a category.
-- Stores optional `recipeUrl` and short `description` fields with each meal.
-- Displays a meal's description in the planner whenever one exists.
-- Stores meal weight, category, Quick, Big Meal / Guests, and Active settings in Firestore.
+- Keeps the planner itself on GitHub Pages; there is no custom application server.
+- Loads the active catalog from Cloud Firestore under `lists/default/...`.
+- Falls back to the bundled `src/data.js` catalog if the remote catalog cannot be loaded.
+- Provides an authenticated **Manage Meals** page for adding, editing, disabling, and deleting meals.
+- Supports category creation, category weights, meal weights, Quick and Big Meal / Guests tags, descriptions, recipe links, and Active state.
 - Uses stable meal IDs as the canonical identity for generated meals, carryovers, and recency history.
-- Uses Firebase Authentication for editor sign-in.
-- Uses a Firestore UID allowlist for write access rather than trusting every authenticated Firebase user.
-- Continues storing the current weekly plan and recency history in browser `localStorage`.
-- Lets you return from either candidate selection or the finished schedule to **Edit week setup** if a day was planned incorrectly.
-- Includes the finished-week print workflow for a clean weekly menu printout.
-- Includes a week-level **Nothing new** option.
+- Stores the current weekly plan and recency history in browser `localStorage`.
+- Supports **Edit week setup**, **Change choices**, carryovers, printing, and the week-level **Nothing new** option.
 
-Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently check **Quick** and **Big Meal / Guests**, so one day can require either tag, both tags, or neither. A day with both boxes checked must receive a meal tagged both Quick and Big Meal.
+Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently require **Quick** and **Big Meal / Guests**; a day with both checked must receive a meal carrying both tags.
 
 ## Firebase architecture
 
 The public site remains a static GitHub Pages application. Browser-side Firebase modules connect directly to Firebase Authentication and Cloud Firestore.
 
-Firestore currently uses two top-level collections:
+The active catalog is now list-backed:
 
-- `categories` — category name, weight, and ordering value.
-- `meals` — `stableId`, category ID, name, weight, `quick`, `bigMeal`, `active`, optional `recipeUrl`, optional `description`, order, and any existing modifiers.
+```text
+lists/
+  default/
+    name: "Family Dinners"
+    ownerUid: <owner Firebase UID>
+    publicRead: true
+    schemaVersion: 1
 
-Reads are public so the normal planner does not require a login. Writes are restricted to explicitly allowed Firebase Authentication UIDs.
+    categories/
+      <category document ID>
+        name
+        weight
+        order
 
-All existing meal documents have been migrated so `stableId` equals the meal's existing Firestore document ID. New meals created through Manage Meals also receive a stable ID when they are created.
+    meals/
+      <meal document ID>
+        stableId
+        categoryId
+        name
+        weight
+        quick
+        bigMeal
+        active
+        recipeUrl
+        description
+        order
+```
 
-The planner now requires stable IDs from the Firestore catalog. This means a meal can later be renamed or moved between categories without changing the identity used by carryovers or recency history.
+The `default` list is currently named **Family Dinners**. Its nested categories and meals are public-readable so the normal planner does not require a login. Writes require the authenticated user to own the list.
 
-New-recipe and new-category prompts are generator behavior rather than catalog records. Legacy `new-recipe` or `new-category` category documents are ignored by the generator if they still exist.
+The previous top-level `categories` and `meals` collections remain physically present in Firestore as an inert rollback snapshot, but the current security rules grant the application no read or write access to them.
 
-To approve another editor later, manually create that user in Firebase Authentication and add their UID to the array in the Firestore rules.
-
-## Pre-alpha data policy
-
-The app is still in a pre-alpha development phase. Schema and state changes prioritize the target architecture over backward compatibility with test data.
-
-Version 0.9.0 deliberately resets the old local weekly state and meal-history test data the first time the new code loads. The meal catalog in Firestore is preserved. New recency history starts fresh and uses stable meal IDs rather than category/name-derived keys.
-
-The temporary stable-ID migration panel has been removed now that all existing meal records are migrated and verified.
-
-## Catalog management
-
-The Manage Meals page supports ongoing catalog maintenance without repository changes. Editors can add or edit meals, change meal weights and tags, add descriptions and recipe links, deactivate meals, delete meals, create new categories, and adjust category weights.
-
-The catalog browser can be filtered to a single category. When a category is selected, its current weight and meal count are shown, the category name or weight can be edited directly, and each meal in the category displays its own weight.
-
-New categories are stored in Firestore with their own weight and ordering value. After a category is created it is immediately available in the meal editor and category browser.
-
-## New ideas
-
-Normal categories no longer need stored placeholder meals such as `New BBQ Recipe`. Whenever a normal category is selected for an unrestricted candidate slot, there is a **10% chance** that the result will instead be **New Recipe** for that category.
-
-**New Category** is a separate **5% chance per generation** and occupies one candidate slot when it appears. Required Quick and Big Meal / Guests slots never become new-recipe or new-category prompts because those prompts do not carry qualifying tags.
-
-The week setup screen includes **Nothing new**. When checked, both New Recipe and New Category prompts are suppressed for that week's generation and rerolls. Starting the next week resets the toggle to off.
+All existing meal documents were migrated with their original Firestore document IDs preserved. Each meal's `stableId` equals that document ID, so renaming or recategorizing a meal does not change its identity.
 
 ## Security rules
 
-The repository includes `firestore.rules`. The intended access model is:
+The repository includes `firestore.rules`.
 
-- Anyone may read `categories` and `meals`.
-- Only UIDs explicitly listed in `isEditor()` may create, update, or delete them.
-- All other Firestore paths are denied.
+The current access model is:
 
-The Firebase browser configuration is intentionally present in client-side code. Firebase web configuration values are identifiers, not database passwords; access control comes from Authentication and Firestore Security Rules.
+- A signed-in user may create a list only with their own UID as `ownerUid`.
+- Only the list owner may read the list metadata document or modify/delete the list.
+- A list owner may create, edit, and delete that list's categories and meals.
+- Nested categories and meals may be read without authentication only when the parent list has `publicRead: true`.
+- The legacy top-level catalog and all unspecified Firestore paths are denied.
+
+The Firebase browser configuration is intentionally present in client-side code. Those values identify the Firebase project; authorization comes from Firebase Authentication and Firestore Security Rules.
+
+## Pre-alpha data policy
+
+The app is still pre-alpha. Schema and state changes prioritize the target architecture over backward compatibility with test data.
+
+Version 0.9.0 reset old local weekly/history test state and moved recency tracking to stable meal IDs. Versions 0.9.1–0.9.3 migrated the catalog into the first list, switched the planner and admin page to the new paths, and removed the temporary migration utilities and legacy admin code.
+
+## Catalog management
+
+The Manage Meals page currently operates on the **Family Dinners** list. Editors can add or edit meals, change weights and tags, add descriptions and recipe links, deactivate or delete meals, create categories, and adjust category names and weights.
+
+The catalog browser can be filtered to one category. Selecting a category exposes its current weight and meal count and allows direct editing.
+
+## New ideas
+
+Normal categories do not need stored placeholder meals such as `New BBQ Recipe`. Whenever a normal category is selected for an unrestricted candidate slot, there is a **10% chance** the candidate becomes **New Recipe** for that category.
+
+**New Category** is a separate **5% chance per generation** and occupies one candidate slot when it appears. Required Quick and Big Meal / Guests slots never become new-idea prompts because those prompts do not carry qualifying tags.
+
+The week setup screen includes **Nothing new**. When checked, both New Recipe and New Category prompts are suppressed for that week's generation and rerolls.
 
 ## Weekly planning
 
 The planner always covers Monday through Sunday. Non-dinner days reduce the number of generated dinners. Dinner days may have no tag requirement, Quick only, Big Meal / Guests only, or both.
 
-The generator reserves enough qualifying candidates to make the planned week possible. A combined Quick + Big day can be satisfied by one meal carrying both tags, while separate Quick and Big days still require separate dinner assignments.
-
-The candidate and scheduled screens both include **Edit week setup**. Returning to setup keeps active carryovers but clears generated candidates and assignments so the corrected week can be generated cleanly. The scheduled screen also retains **Change choices** for revising only the selected meals without changing the week structure.
-
-Carryovers remain automatic candidates unless explicitly removed, and their stable ID, Quick/Big tags, descriptions, and recipe links travel with them.
+The generator reserves enough qualifying candidates to make the planned week possible. Carryovers remain automatic candidates unless explicitly removed, and their stable ID, Quick/Big tags, descriptions, and recipe links travel with them.
 
 ## Meal history weighting
 
