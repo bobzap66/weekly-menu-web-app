@@ -13,6 +13,11 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/lists/$(listId)).data.ownerUid == request.auth.uid;
     }
 
+    function canReadList(listId) {
+      return ownsList(listId)
+        || get(/databases/$(database)/documents/lists/$(listId)).data.publicRead == true;
+    }
+
     // Legacy top-level catalog. Keep this during the staged list migration.
     match /categories/{categoryId} {
       allow read: if true;
@@ -24,23 +29,24 @@ service cloud.firestore {
       allow create, update, delete: if isEditor();
     }
 
-    // List metadata is private to approved editors. Public planner reads do not
-    // need the parent list document; they read the nested catalog directly.
+    // List metadata is private to its owner. The nested catalog may be public
+    // only when the list explicitly opts in with publicRead: true.
     match /lists/{listId} {
-      allow read: if isEditor();
-      allow create: if isEditor()
+      allow read: if ownsList(listId);
+      allow create: if request.auth != null
         && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if isEditor()
-        && resource.data.ownerUid == request.auth.uid;
+      allow update: if ownsList(listId)
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if ownsList(listId);
 
       match /categories/{categoryId} {
-        allow read: if true;
-        allow create, update, delete: if isEditor() && ownsList(listId);
+        allow read: if canReadList(listId);
+        allow create, update, delete: if ownsList(listId);
       }
 
       match /meals/{mealId} {
-        allow read: if true;
-        allow create, update, delete: if isEditor() && ownsList(listId);
+        allow read: if canReadList(listId);
+        allow create, update, delete: if ownsList(listId);
       }
     }
 
