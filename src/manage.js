@@ -28,6 +28,13 @@ const categoryForm = document.querySelector("#category-form");
 const categoryName = document.querySelector("#category-name");
 const categoryWeight = document.querySelector("#category-weight");
 const categoryStatus = document.querySelector("#category-status");
+const categoryFilter = document.querySelector("#category-filter");
+const categoryEditForm = document.querySelector("#category-edit-form");
+const categoryEditId = document.querySelector("#category-edit-id");
+const categoryEditName = document.querySelector("#category-edit-name");
+const categoryEditWeight = document.querySelector("#category-edit-weight");
+const categoryEditStatus = document.querySelector("#category-edit-status");
+const categoryMealCount = document.querySelector("#category-meal-count");
 const mealForm = document.querySelector("#meal-form");
 const mealId = document.querySelector("#meal-id");
 const mealName = document.querySelector("#meal-name");
@@ -56,16 +63,60 @@ function setStatus(element, message, isError = false) {
   element.classList.toggle("is-error", isError);
 }
 
+function editableCategories() {
+  return categories.filter((category) => !category.result).sort(sortByOrder);
+}
+
 function populateCategorySelect(selectedId = "") {
   mealCategory.replaceChildren();
 
-  for (const category of categories.filter((category) => !category.result).sort(sortByOrder)) {
+  for (const category of editableCategories()) {
     const option = document.createElement("option");
     option.value = category.id;
     option.textContent = category.name;
     option.selected = category.id === selectedId;
     mealCategory.append(option);
   }
+}
+
+function populateCategoryFilter(selectedId = "") {
+  categoryFilter.replaceChildren();
+
+  const allOption = document.createElement("option");
+  allOption.value = "";
+  allOption.textContent = "All categories";
+  categoryFilter.append(allOption);
+
+  const validIds = new Set();
+  for (const category of editableCategories()) {
+    validIds.add(category.id);
+    const option = document.createElement("option");
+    option.value = category.id;
+    option.textContent = `${category.name} (weight ${category.weight})`;
+    categoryFilter.append(option);
+  }
+
+  categoryFilter.value = validIds.has(selectedId) ? selectedId : "";
+}
+
+function renderCategoryEditor() {
+  const categoryId = categoryFilter.value;
+  const category = categories.find((item) => item.id === categoryId && !item.result);
+
+  if (!category) {
+    categoryEditForm.hidden = true;
+    categoryEditId.value = "";
+    setStatus(categoryEditStatus, "");
+    return;
+  }
+
+  const mealCount = meals.filter((meal) => meal.categoryId === category.id).length;
+  categoryEditForm.hidden = false;
+  categoryEditId.value = category.id;
+  categoryEditName.value = category.name;
+  categoryEditWeight.value = String(category.weight);
+  categoryMealCount.textContent = `${mealCount} ${mealCount === 1 ? "meal" : "meals"} in this category`;
+  setStatus(categoryEditStatus, "");
 }
 
 function resetMealForm() {
@@ -124,9 +175,11 @@ function createTag(text, className) {
 
 function renderMeals() {
   const query = mealSearch.value.trim().toLowerCase();
+  const selectedCategoryId = categoryFilter.value;
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const filtered = meals
     .filter((meal) => {
+      if (selectedCategoryId && meal.categoryId !== selectedCategoryId) return false;
       if (!query) return true;
       const categoryNameValue = categoryById.get(meal.categoryId)?.name ?? "";
       return `${meal.name} ${categoryNameValue} ${meal.description ?? ""}`.toLowerCase().includes(query);
@@ -155,7 +208,7 @@ function renderMeals() {
     meta.className = "meal-meta-row";
     category.className = "category-name";
     category.textContent = categoryById.get(meal.categoryId)?.name ?? meal.categoryId;
-    meta.append(category);
+    meta.append(category, createTag(`Weight ${meal.weight}`, "weight-label"));
 
     if (meal.quick) meta.append(createTag("Quick", "quick-label"));
     if (meal.bigMeal) meta.append(createTag("Big Meal", "big-meal-label"));
@@ -197,10 +250,14 @@ function renderMeals() {
   }
 
   mealCatalog.replaceChildren(fragment);
-  catalogStatus.textContent = `${filtered.length} of ${meals.length} meals shown.`;
+  const category = categories.find((item) => item.id === selectedCategoryId);
+  const scope = category ? ` in ${category.name}` : "";
+  catalogStatus.textContent = `${filtered.length} of ${meals.length} meals shown${scope}.`;
 }
 
 async function loadCatalog() {
+  const selectedCategoryId = categoryFilter.value;
+
   try {
     setStatus(catalogStatus, "Loading meals…");
     const [categorySnapshot, mealSnapshot] = await Promise.all([
@@ -216,12 +273,15 @@ async function loadCatalog() {
       .sort(sortByOrder);
 
     populateCategorySelect(mealCategory.value);
+    populateCategoryFilter(selectedCategoryId);
+    renderCategoryEditor();
     renderMeals();
   } catch (error) {
     console.error(error);
     categories = [];
     meals = [];
     mealCatalog.replaceChildren();
+    categoryEditForm.hidden = true;
     setStatus(catalogStatus, "Could not read Firestore. Check the connection and security rules.", true);
   }
 }
@@ -281,15 +341,59 @@ categoryForm.addEventListener("submit", async (event) => {
       order: maxOrder + 1,
     });
 
-    await loadCatalog();
     categoryForm.reset();
     categoryWeight.value = "1";
+    await loadCatalog();
     populateCategorySelect(categoryRef.id);
-    setStatus(categoryStatus, `${name} added and selected in the meal editor.`);
+    categoryFilter.value = categoryRef.id;
+    renderCategoryEditor();
+    renderMeals();
+    setStatus(categoryStatus, `${name} added and selected in the catalog view.`);
   } catch (error) {
     console.error(error);
     setStatus(categoryStatus, "Could not add the category. Check the Firestore security rules.", true);
   }
+});
+
+categoryEditForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const id = categoryEditId.value;
+  const name = categoryEditName.value.trim();
+  const weight = Number(categoryEditWeight.value);
+
+  if (!id || !name || !Number.isFinite(weight) || weight <= 0) {
+    setStatus(categoryEditStatus, "Category name and a positive weight are required.", true);
+    return;
+  }
+
+  if (
+    categories.some(
+      (category) =>
+        category.id !== id &&
+        String(category.name ?? "").trim().toLowerCase() === name.toLowerCase(),
+    )
+  ) {
+    setStatus(categoryEditStatus, `A category named ${name} already exists.`, true);
+    return;
+  }
+
+  try {
+    await updateDoc(doc(db, "categories", id), { name, weight });
+    await loadCatalog();
+    categoryFilter.value = id;
+    renderCategoryEditor();
+    renderMeals();
+    setStatus(categoryEditStatus, `${name} updated.`);
+  } catch (error) {
+    console.error(error);
+    setStatus(categoryEditStatus, "Could not update the category. Check the Firestore security rules.", true);
+  }
+});
+
+categoryFilter.addEventListener("change", () => {
+  renderCategoryEditor();
+  renderMeals();
 });
 
 cancelEditButton.addEventListener("click", resetMealForm);
