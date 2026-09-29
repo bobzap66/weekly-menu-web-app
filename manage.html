@@ -6,7 +6,7 @@
     <meta name="description" content="Sign in to manage the Weekly Menu meal catalog." />
     <title>Manage Meals — Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./manage.css?v=0.9.2" />
+    <link rel="stylesheet" href="./manage.css?v=0.9.3" />
   </head>
   <body>
     <main class="app-shell admin-shell">
@@ -52,7 +52,7 @@
               <button id="sign-out-button" class="action-button secondary-button" type="button">Sign out</button>
             </div>
           </div>
-          <p class="admin-help">Changes on this page now apply to the Family Dinners list. The legacy top-level catalog is retained temporarily as a rollback snapshot.</p>
+          <p class="admin-help">Changes on this page apply to the Family Dinners list. The old top-level catalog remains in Firestore only as an inert backup.</p>
         </section>
 
         <section class="menu-card admin-card" aria-labelledby="category-heading">
@@ -162,6 +162,6 @@
       </section>
     </main>
 
-    <script type="module" src="./src/manage-list.js?v=0.9.2"></script>
+    <script type="module" src="./src/manage-list.js?v=0.9.3"></script>
   </body>
 </html>
