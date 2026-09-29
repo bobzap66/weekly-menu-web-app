@@ -1,6 +1,11 @@
 import { menuData } from "./data.js";
 import { generateMenu } from "./generator.js";
 import {
+  addWeekToHistory,
+  createHistory,
+  isValidHistory,
+} from "./history.js";
+import {
   MAX_REJECTIONS,
   clearRejections,
   createMenuState,
@@ -11,6 +16,7 @@ import {
 } from "./state.js";
 
 const STORAGE_KEY = "weekly-menu:v1";
+const HISTORY_STORAGE_KEY = "weekly-menu:history:v1";
 
 const menuList = document.querySelector("#menu-list");
 const stepLabel = document.querySelector("#step-label");
@@ -20,7 +26,7 @@ const primaryButton = document.querySelector("#primary-button");
 const secondaryButton = document.querySelector("#secondary-button");
 
 function createFreshState() {
-  return createMenuState(generateMenu(menuData));
+  return createMenuState(generateMenu(menuData, Math.random, history));
 }
 
 function loadState() {
@@ -36,6 +42,19 @@ function loadState() {
   return null;
 }
 
+function loadHistory() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY));
+    if (isValidHistory(saved)) {
+      return saved;
+    }
+  } catch {
+    // Ignore unavailable storage or malformed history and start clean.
+  }
+
+  return createHistory();
+}
+
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -44,7 +63,20 @@ function saveState() {
   }
 }
 
+function saveHistory() {
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+  } catch {
+    // The app still works without history if storage is unavailable.
+  }
+}
+
 function startFreshWeek() {
+  if (state.finalized) {
+    history = addWeekToHistory(history, getSelectedMeals(state), state.createdAt);
+    saveHistory();
+  }
+
   state = createFreshState();
   saveState();
   render();
@@ -73,7 +105,7 @@ function renderCandidates() {
   const remaining = MAX_REJECTIONS - rejectedCount;
   selectionStatus.textContent =
     rejectedCount === 0
-      ? "Tap three meals you do not want this week."
+      ? "Tap three meals you do not want this week. Recent dinners are less likely to repeat."
       : `${rejectedCount} of ${MAX_REJECTIONS} removed — choose ${remaining} more.`;
 
   for (const candidate of state.candidates) {
@@ -121,7 +153,8 @@ function renderFinalMenu() {
 
   stepLabel.textContent = "This week’s menu";
   menuHeading.textContent = "Seven dinners, decided";
-  selectionStatus.textContent = "Saved on this device — this menu will still be here when you come back.";
+  selectionStatus.textContent =
+    "Saved on this device. Starting next week will remember these dinners and make recent repeats less likely.";
 
   for (const meal of getSelectedMeals(state)) {
     const item = document.createElement("li");
@@ -156,6 +189,7 @@ secondaryButton.addEventListener("click", () => {
   render();
 });
 
+let history = loadHistory();
 let state = loadState();
 if (!state) {
   state = createFreshState();
