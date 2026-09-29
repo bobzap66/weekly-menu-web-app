@@ -64,6 +64,32 @@
   background: #f4dfc8;
 }
 
+.setup-week-option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgb(74 63 45 / 12%);
+  background: #faf6ef;
+}
+
+.setup-week-option-text {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.setup-week-option-note {
+  color: #716b60;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.nothing-new-check:has(input:checked) {
+  color: #6b3e20;
+  background: #f1dfcb;
+}
+
 .schedule-day-badges {
   display: flex;
   justify-content: flex-end;
@@ -89,6 +115,11 @@
 
   .day-requirements {
     justify-content: flex-start;
+  }
+
+  .setup-week-option-item {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .schedule-day-badges {
