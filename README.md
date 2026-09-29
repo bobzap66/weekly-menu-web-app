@@ -3,18 +3,18 @@
 A dependency-free static web app that recreates and extends the behavior of the original
 TableMaster `WeeklyMenu.tbl` file.
 
-## Version 0.5 behavior
+## Version 0.6 behavior
 
-- Starts each week by planning Monday through Sunday as **Normal Dinner**, **Quick Meal**, **Leftovers**, **Eating Out**, or **No Meal Planned**.
+- Starts each week by planning Monday through Sunday as **Normal Dinner**, **Quick Meal**, **Big Meal / Guests**, **Leftovers**, **Eating Out**, or **No Meal Planned**.
 - Generates only as many dinner selections as the planned cooking days require, plus three extra candidates to cut.
 - Keeps the original weighted category and meal selection rules, including 25% conditional modifiers.
-- Tags every meal as quick or not quick. Quick currently means the family's normal version can generally reach the table in about 30 minutes or less.
-- Ensures the candidate pool contains enough quick-tagged dinners for the week's **Quick Meal** days.
-- Will not finalize a menu if the selected dinners cannot satisfy all planned Quick Meal days.
-- Automatically assigns quick-tagged dinners to Quick Meal days when the menu is finalized.
-- Assigns the remaining selected dinners to Normal Dinner days.
+- Tags every meal with explicit `quick` and `bigMeal` booleans.
+- Treats **Quick Meal** as a real requirement: the final schedule must place a quick-tagged dinner on every Quick Meal day.
+- Treats **Big Meal / Guests** as a real requirement: the final schedule must place a guest-friendly, easily scalable dinner on every Guests day.
+- Reserves distinct qualifying dinners when Quick and Guests are planned on different days, even when some meals qualify for both tags.
+- Automatically assigns qualifying meals to Quick and Guests days, then fills Normal Dinner days with the remaining selections.
 - Shows Leftovers, Eating Out, and No Meal Planned directly in the final Monday-through-Sunday schedule.
-- Lets scheduled dinners swap days, while preventing a swap that would put a non-quick dinner on a Quick Meal day.
+- Lets scheduled dinners swap days while preventing a swap that would violate a Quick or Guests requirement.
 - Lets you mark a dinner **Didn't eat — carry over** at the end of the week.
 - Carries uneaten dinners into the next week's candidate pool as automatic selections unless you explicitly remove them.
 - Preserves carried-over dinners when rerolling the other candidates.
@@ -33,7 +33,17 @@ If carryovers create more candidates than the normal three-extra cushion, the ap
 
 ## Quick meals
 
-Meals carry an explicit `quick: true` or `quick: false` tag in `src/data.js`. The generator uses those tags whenever one or more days are planned as **Quick Meal**. Quick Meal days are treated as requirements rather than suggestions: the finalized schedule must place a quick-tagged dinner on each of them.
+Meals carry an explicit `quick: true` or `quick: false` tag in `src/data.js`. Quick currently means the family's normal version can generally reach the table in about 30 minutes or less.
+
+Quick Meal days are treated as requirements rather than suggestions. The candidate generator reserves enough quick-qualified options, and the final schedule will not place a non-quick dinner on a Quick Meal day.
+
+## Big meals / guests
+
+Meals also carry an explicit `bigMeal: true` or `bigMeal: false` tag. A Big Meal is a practical choice when extra people are coming over: either naturally batch-sized or easy to scale up without turning dinner into a production.
+
+Big Meal / Guests days work the same way as Quick Meal days. The candidate generator reserves enough guest-friendly options, the chooser will not finalize an impossible selection, and manual day swaps cannot put a non-big meal on a Guests day.
+
+If a week contains both Quick and Guests requirements, the planner treats them as separate calendar slots. A dinner tagged both Quick and Big can fill either requirement, but it cannot satisfy two different days at once.
 
 ## Meal history weighting
 
