@@ -34,7 +34,7 @@ export const menuData = {
       weight: 2,
       meals: [
         { name: "Spaghetti", weight: 2, quick: true },
-        { name: "Lazy Lasagna", weight: 2, quick: false },
+        { name: "Lazy Lasagna", weight: 2, quick: true },
         { name: "Chicken Parmesan", weight: 1, quick: false },
         { name: "Lasagna", weight: 1, quick: false },
         { name: "Goulash", weight: 2, quick: true },
@@ -53,7 +53,7 @@ export const menuData = {
         { name: "Fish", weight: 1, quick: true },
         { name: "Meatloaf", weight: 3, quick: false },
         { name: "Beanie Weenies", weight: 2, quick: true },
-        { name: "Turkey and Rice", weight: 2, quick: false },
+        { name: "Turkey and Rice", weight: 2, quick: true },
         { name: "Country Fried Steak and Gravy (Dinner)", weight: 1, quick: false },
         { name: "Steak, Eggs, and Potatoes", weight: 2, quick: false },
         { name: "Ham Dinner w/ Fixings", weight: 1, quick: false },
