@@ -1,6 +1,6 @@
 import { loadRemoteCatalog } from "./catalog.js?v=0.9.0";
 
-const STABLE_ID_RESET_KEY = "weekly-menu:stable-id-reset:v1";
+const STABLE_ID_RESET_KEY = "weekly-menu:stable-id-reset:v2";
 
 try {
   if (localStorage.getItem(STABLE_ID_RESET_KEY) !== "done") {
