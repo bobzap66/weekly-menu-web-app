@@ -76,6 +76,7 @@ function createSuggestion(category, history, rng, quickOnly = false) {
       mealName: category.result,
       mealKey: mealHistoryKey(category.id, category.result),
       quick: category.quick === true,
+      bigMeal: category.bigMeal === true,
     };
   }
 
@@ -86,6 +87,7 @@ function createSuggestion(category, history, rng, quickOnly = false) {
     mealName: applyModifiers(meal, rng),
     mealKey: meal.mealKey,
     quick: meal.quick === true,
+    bigMeal: meal.bigMeal === true,
   };
 }
 
