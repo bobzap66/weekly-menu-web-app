@@ -54,33 +54,6 @@
           <p class="admin-help">Use this UID in the Firestore security rules allowlist. The editor intentionally has no public sign-up screen.</p>
         </section>
 
-        <section id="seed-card" class="menu-card admin-card" hidden>
-          <div class="admin-section-heading">
-            <div>
-              <p class="step-label">First-time setup</p>
-              <h2>Seed the database</h2>
-            </div>
-          </div>
-          <div class="admin-section-body">
-            <p>The Firestore catalog is empty. Copy the current bundled categories and meals into the database in one batch.</p>
-            <button id="seed-button" class="action-button primary-button" type="button">Seed current meal catalog</button>
-          </div>
-        </section>
-
-        <section id="description-fill-card" class="menu-card admin-card" hidden>
-          <div class="admin-section-heading">
-            <div>
-              <p class="step-label">Bulk update</p>
-              <h2>Fill missing descriptions</h2>
-            </div>
-          </div>
-          <div class="admin-section-body">
-            <p>Add the prepared first-pass descriptions directly to meals whose description is still blank. Existing descriptions are never overwritten.</p>
-            <button id="description-fill-button" class="action-button primary-button" type="button" disabled>Checking descriptions…</button>
-            <p id="description-fill-status" class="admin-status" aria-live="polite"></p>
-          </div>
-        </section>
-
         <section class="menu-card admin-card" aria-labelledby="editor-heading">
           <div class="admin-section-heading">
             <div>
@@ -141,6 +114,5 @@
     </main>
 
     <script type="module" src="./src/manage.js"></script>
-    <script type="module" src="./src/description-filler.js"></script>
   </body>
 </html>
