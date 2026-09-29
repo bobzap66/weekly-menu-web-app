@@ -143,9 +143,14 @@ export function createMenuState(
   suggestions,
   weekPlan,
   createdAt = new Date().toISOString(),
+  deferredCarryovers = [],
 ) {
   if (!Array.isArray(suggestions)) {
     throw new Error("Suggestions must be an array.");
+  }
+
+  if (!Array.isArray(deferredCarryovers)) {
+    throw new Error("Deferred carryovers must be an array.");
   }
 
   if (!isValidWeekPlan(weekPlan)) {
@@ -167,7 +172,9 @@ export function createMenuState(
     mode: targetMealCount === 0 ? "scheduled" : "choosing",
     createdAt,
     weekPlan: { ...weekPlan },
-    pendingCarryovers: [],
+    pendingCarryovers: targetMealCount === 0
+      ? deferredCarryovers.map((meal) => ({ ...meal }))
+      : [],
     candidates,
     rejectedIds: [],
     carryoverIds: [],
@@ -283,7 +290,8 @@ export function toggleCarryover(state, candidateIdValue) {
 
 export function getCarryoverMeals(state) {
   const carryovers = new Set(state.carryoverIds);
-  return getSelectedMeals(state).filter((candidate) => carryovers.has(candidate.id));
+  const markedMeals = getSelectedMeals(state).filter((candidate) => carryovers.has(candidate.id));
+  return [...state.pendingCarryovers, ...markedMeals];
 }
 
 export function getEatenMeals(state) {
