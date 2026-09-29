@@ -3,17 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Sign in to manage the Weekly Menu meal catalog." />
+    <meta name="description" content="Sign in to manage Weekly Menu meal lists." />
     <title>Manage Meals — Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./manage.css?v=0.9.3" />
+    <link rel="stylesheet" href="./manage.css?v=0.10.0" />
   </head>
   <body>
     <main class="app-shell admin-shell">
       <header class="hero admin-hero">
         <p class="eyebrow">Weekly Menu</p>
         <h1>Manage Meals</h1>
-        <p class="intro">Add and edit meals without changing the GitHub repository.</p>
+        <p class="intro">Create meal lists and manage each list's categories, meals, weights, and tags.</p>
         <p class="admin-nav"><a href="./">← Back to weekly planner</a></p>
       </header>
 
@@ -44,7 +44,7 @@
             <div>
               <p class="step-label">Signed in</p>
               <p id="account-email" class="account-email"></p>
-              <p class="uid-line">List: <strong id="active-list-name">Family Dinners</strong></p>
+              <p class="uid-line">Active list: <strong id="active-list-name">None</strong></p>
               <p class="uid-line">UID: <code id="account-uid"></code></p>
             </div>
             <div class="action-row">
@@ -52,10 +52,36 @@
               <button id="sign-out-button" class="action-button secondary-button" type="button">Sign out</button>
             </div>
           </div>
-          <p class="admin-help">Changes on this page apply to the Family Dinners list. The old top-level catalog remains in Firestore only as an inert backup.</p>
+          <p class="admin-help">The list selected here is also the list the planner will use while this account is signed in on this browser.</p>
         </section>
 
-        <section class="menu-card admin-card" aria-labelledby="category-heading">
+        <section class="menu-card admin-card" aria-labelledby="lists-heading">
+          <div class="admin-section-heading">
+            <div>
+              <p class="step-label">Meal lists</p>
+              <h2 id="lists-heading">Choose or create a list</h2>
+            </div>
+          </div>
+          <div class="list-management-grid">
+            <label class="list-select-field">
+              <span>Your lists</span>
+              <select id="list-select">
+                <option value="">Loading lists…</option>
+              </select>
+            </label>
+            <form id="create-list-form" class="create-list-form">
+              <label>
+                <span>New list name</span>
+                <input id="new-list-name" type="text" maxlength="80" placeholder="Weeknight Dinners" required />
+              </label>
+              <button class="action-button primary-button" type="submit">Create list</button>
+            </form>
+          </div>
+          <p class="admin-help">New lists start empty and private. Family Dinners remains public-readable so the signed-out planner still has a default catalog.</p>
+          <p id="list-status" class="admin-status" aria-live="polite"></p>
+        </section>
+
+        <section class="menu-card admin-card" aria-labelledby="category-heading" data-list-required>
           <div class="admin-section-heading">
             <div>
               <p class="step-label">Categories</p>
@@ -76,7 +102,7 @@
           <p id="category-status" class="admin-status" aria-live="polite"></p>
         </section>
 
-        <section class="menu-card admin-card" aria-labelledby="editor-heading">
+        <section class="menu-card admin-card" aria-labelledby="editor-heading" data-list-required>
           <div class="admin-section-heading">
             <div>
               <p class="step-label">Meal editor</p>
@@ -118,7 +144,7 @@
           <p id="editor-status" class="admin-status" aria-live="polite"></p>
         </section>
 
-        <section class="menu-card admin-card" aria-labelledby="catalog-heading">
+        <section class="menu-card admin-card" aria-labelledby="catalog-heading" data-list-required>
           <div class="admin-section-heading catalog-heading-row">
             <div>
               <p class="step-label">Catalog</p>
@@ -162,6 +188,6 @@
       </section>
     </main>
 
-    <script type="module" src="./src/manage-list.js?v=0.9.3"></script>
+    <script type="module" src="./src/manage-list.js?v=0.10.0"></script>
   </body>
 </html>
