@@ -2,7 +2,7 @@
 
 A static GitHub Pages dinner planner with a small Firebase-backed editable meal catalog.
 
-## Version 0.7.1 behavior
+## Version 0.7.2 behavior
 
 - Keeps the weekly planner itself on GitHub Pages; there is no custom application server.
 - Loads categories and meals from Cloud Firestore when the remote catalog is available.
@@ -15,8 +15,9 @@ A static GitHub Pages dinner planner with a small Firebase-backed editable meal 
 - Uses Firebase Authentication for editor sign-in.
 - Uses a Firestore UID allowlist for write access rather than trusting every authenticated Firebase user.
 - Continues storing the current weekly plan and recency history in browser `localStorage`.
+- Lets you return from either candidate selection or the finished schedule to **Edit week setup** if a day was planned incorrectly.
 
-Each day now has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently check **Quick** and **Big Meal / Guests**, so one day can require either tag, both tags, or neither. A day with both boxes checked must receive a meal tagged both Quick and Big Meal.
+Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently check **Quick** and **Big Meal / Guests**, so one day can require either tag, both tags, or neither. A day with both boxes checked must receive a meal tagged both Quick and Big Meal.
 
 ## Firebase architecture
 
@@ -56,6 +57,8 @@ The Firebase browser configuration is intentionally present in client-side code.
 The planner always covers Monday through Sunday. Non-dinner days reduce the number of generated dinners. Dinner days may have no tag requirement, Quick only, Big Meal / Guests only, or both.
 
 The generator reserves enough qualifying candidates to make the planned week possible. A combined Quick + Big day can be satisfied by one meal carrying both tags, while separate Quick and Big days still require separate dinner assignments.
+
+The candidate and scheduled screens both include **Edit week setup**. Returning to setup keeps active carryovers but clears generated candidates and assignments so the corrected week can be generated cleanly. The scheduled screen also retains **Change choices** for revising only the selected meals without changing the week structure.
 
 Carryovers remain automatic candidates unless explicitly removed, and their Quick/Big tags, descriptions, and recipe links travel with them.
 
