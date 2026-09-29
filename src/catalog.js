@@ -14,6 +14,7 @@ function mealFromDocument(docSnapshot) {
   const data = docSnapshot.data();
   return {
     id: docSnapshot.id,
+    stableId: data.stableId,
     categoryId: data.categoryId,
     name: data.name,
     weight: Number(data.weight) || 1,
@@ -34,13 +35,6 @@ function categoryFromDocument(docSnapshot) {
     name: data.name,
     weight: Number(data.weight) || 1,
     order: Number.isFinite(data.order) ? data.order : 0,
-    ...(typeof data.result === "string" && data.result.length > 0
-      ? {
-          result: data.result,
-          quick: data.quick === true,
-          bigMeal: data.bigMeal === true,
-        }
-      : {}),
   };
 }
 
@@ -56,6 +50,14 @@ export async function loadRemoteCatalog() {
 
   const categories = categorySnapshot.docs.map(categoryFromDocument).sort(sortByOrder);
   const meals = mealSnapshot.docs.map(mealFromDocument).filter((meal) => meal.active).sort(sortByOrder);
+  const invalidStableIds = meals.filter(
+    (meal) => typeof meal.stableId !== "string" || meal.stableId.length === 0,
+  );
+
+  if (invalidStableIds.length > 0) {
+    throw new Error(`${invalidStableIds.length} active meal documents are missing stableId.`);
+  }
+
   const mealsByCategory = new Map();
 
   for (const meal of meals) {
@@ -67,10 +69,6 @@ export async function loadRemoteCatalog() {
 
   const remoteCategories = categories
     .map((category) => {
-      if (category.result) {
-        return category;
-      }
-
       const categoryMeals = mealsByCategory.get(category.id) ?? [];
       if (categoryMeals.length === 0) {
         return null;
@@ -81,6 +79,7 @@ export async function loadRemoteCatalog() {
         name: category.name,
         weight: category.weight,
         meals: categoryMeals.map((meal) => ({
+          stableId: meal.stableId,
           name: meal.name,
           weight: meal.weight,
           quick: meal.quick,
