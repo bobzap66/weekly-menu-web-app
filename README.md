@@ -1,16 +1,21 @@
 # Weekly Menu
 
-A static GitHub Pages dinner planner with a Firebase-backed editable meal catalog.
+A static GitHub Pages dinner planner with Firebase-backed editable meal lists.
 
-## Version 0.9.3 behavior
+## Version 0.10.0 behavior
 
 - Keeps the planner itself on GitHub Pages; there is no custom application server.
-- Loads the active catalog from Cloud Firestore under `lists/default/...`.
-- Falls back to the bundled `src/data.js` catalog if the remote catalog cannot be loaded.
+- Stores meal catalogs under Firestore `lists/{listId}/...` documents and subcollections.
+- Lets signed-in users create multiple named meal lists and switch between lists they own.
+- New lists start empty and private.
+- Remembers the active list in browser storage.
+- While signed in, the planner uses the currently selected owned list.
+- While signed out, the planner uses the public **Family Dinners** list.
+- Shows the active list name on the planner.
+- Falls back to bundled `src/data.js` meals only if the Firestore catalog cannot be read.
 - Provides an authenticated **Manage Meals** page for adding, editing, disabling, and deleting meals.
 - Supports category creation, category weights, meal weights, Quick and Big Meal / Guests tags, descriptions, recipe links, and Active state.
 - Uses stable meal IDs as the canonical identity for generated meals, carryovers, and recency history.
-- Stores the current weekly plan and recency history in browser `localStorage`.
 - Supports **Edit week setup**, **Change choices**, carryovers, printing, and the week-level **Nothing new** option.
 
 Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently require **Quick** and **Big Meal / Guests**; a day with both checked must receive a meal carrying both tags.
@@ -19,24 +24,25 @@ Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No M
 
 The public site remains a static GitHub Pages application. Browser-side Firebase modules connect directly to Firebase Authentication and Cloud Firestore.
 
-The active catalog is now list-backed:
+Meal catalogs are list-backed:
 
 ```text
 lists/
-  default/
-    name: "Family Dinners"
-    ownerUid: <owner Firebase UID>
-    publicRead: true
-    schemaVersion: 1
+  LIST_ID/
+    name
+    ownerUid
+    publicRead
+    schemaVersion
+    createdAt
 
     categories/
-      <category document ID>
+      CATEGORY_ID/
         name
         weight
         order
 
     meals/
-      <meal document ID>
+      MEAL_ID/
         stableId
         categoryId
         name
@@ -49,11 +55,19 @@ lists/
         order
 ```
 
-The `default` list is currently named **Family Dinners**. Its nested categories and meals are public-readable so the normal planner does not require a login. Writes require the authenticated user to own the list.
+The original list uses the document ID `default` and is named **Family Dinners**. It remains `publicRead: true` so signed-out visitors can use the normal planner without an account. Lists created through Manage Meals use generated Firestore document IDs and default to `publicRead: false`.
 
 The previous top-level `categories` and `meals` collections remain physically present in Firestore as an inert rollback snapshot, but the current security rules grant the application no read or write access to them.
 
-All existing meal documents were migrated with their original Firestore document IDs preserved. Each meal's `stableId` equals that document ID, so renaming or recategorizing a meal does not change its identity.
+All existing Family Dinners meal documents retain their original Firestore document IDs. Each meal's `stableId` equals its document ID, so renaming or recategorizing a meal does not change its identity.
+
+## Active-list behavior
+
+Manage Meals lists all list documents owned by the signed-in Firebase user. Switching the selected list updates the browser's active-list preference. Opening the planner while that user remains signed in loads the selected list.
+
+If the saved active list is no longer accessible, the planner tries the public Family Dinners list. Signed-out users always use Family Dinners regardless of the last private list selected while signed in.
+
+The app is still pre-alpha, so switching to a different list deliberately clears current local weekly-planning state, recency history, and the Nothing New toggle. This prevents carryovers or test history from one list leaking into another without adding a compatibility layer we do not yet need.
 
 ## Security rules
 
@@ -69,15 +83,11 @@ The current access model is:
 
 The Firebase browser configuration is intentionally present in client-side code. Those values identify the Firebase project; authorization comes from Firebase Authentication and Firestore Security Rules.
 
-## Pre-alpha data policy
-
-The app is still pre-alpha. Schema and state changes prioritize the target architecture over backward compatibility with test data.
-
-Version 0.9.0 reset old local weekly/history test state and moved recency tracking to stable meal IDs. Versions 0.9.1–0.9.3 migrated the catalog into the first list, switched the planner and admin page to the new paths, and removed the temporary migration utilities and legacy admin code.
-
 ## Catalog management
 
-The Manage Meals page currently operates on the **Family Dinners** list. Editors can add or edit meals, change weights and tags, add descriptions and recipe links, deactivate or delete meals, create categories, and adjust category names and weights.
+The Manage Meals page includes a list selector and a Create List form. Each list has independent categories, meal records, weights, Quick/Big Meal tags, descriptions, recipe links, and Active state.
+
+New lists are intentionally empty in v0.10.0. Add at least one category and meal before using a new list for planning. List cloning and starter templates are planned as later features.
 
 The catalog browser can be filtered to one category. Selecting a category exposes its current weight and meal count and allows direct editing.
 
