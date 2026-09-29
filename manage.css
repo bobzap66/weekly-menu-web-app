@@ -59,16 +59,23 @@
 }
 
 .create-list-form,
-.duplicate-list-form {
+.duplicate-list-form,
+.delete-list-form {
   display: grid;
   grid-template-columns: minmax(12rem, 1fr) auto;
   align-items: end;
   gap: 0.75rem;
 }
 
+.delete-list-form {
+  padding-top: 0.9rem;
+  border-top: 1px solid rgb(139 52 41 / 18%);
+}
+
 .list-select-field,
 .create-list-form label,
 .duplicate-list-form label,
+.delete-list-form label,
 .admin-form label:not(.checkbox-label),
 .search-field,
 .filter-field,
@@ -83,6 +90,7 @@
 .list-select-field select,
 .create-list-form input,
 .duplicate-list-form input,
+.delete-list-form input,
 .admin-form input,
 .admin-form select,
 .admin-form textarea,
@@ -96,6 +104,14 @@
   color: #222019;
   background: #fffdf8;
   font: inherit;
+}
+
+.delete-list-help {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #8b3429;
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .admin-form textarea {
@@ -283,6 +299,11 @@
   color: #8b3429;
 }
 
+.delete-list-form .danger-button:not(:disabled) {
+  border-color: rgb(139 52 41 / 35%);
+  background: #fff8f6;
+}
+
 .inactive-label,
 .weight-label {
   display: inline-block;
@@ -322,12 +343,14 @@
   .category-edit-panel,
   .list-management-grid,
   .create-list-form,
-  .duplicate-list-form {
+  .duplicate-list-form,
+  .delete-list-form {
     grid-template-columns: 1fr;
   }
 
   .wide-field,
-  .inline-status {
+  .inline-status,
+  .delete-list-help {
     grid-column: auto;
   }
 
