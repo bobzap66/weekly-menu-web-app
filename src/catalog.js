@@ -45,8 +45,6 @@ export async function loadRemoteCatalog(listId = DEFAULT_LIST_ID) {
     getDocs(collection(db, "lists", listId, "meals")),
   ]);
 
-  if (categorySnapshot.empty) return false;
-
   const categories = categorySnapshot.docs.map(categoryFromDocument).sort(sortByOrder);
   const meals = mealSnapshot.docs.map(mealFromDocument).filter((meal) => meal.active).sort(sortByOrder);
   const invalidStableIds = meals.filter(
@@ -86,8 +84,9 @@ export async function loadRemoteCatalog(listId = DEFAULT_LIST_ID) {
     })
     .filter(Boolean);
 
-  if (remoteCategories.length === 0) return false;
-
+  // A valid list may intentionally be empty. Once Firestore permits the read,
+  // an empty remote list should remain empty rather than falling back to the
+  // bundled Family Dinners catalog.
   menuData.categories.splice(0, menuData.categories.length, ...remoteCategories);
   return true;
 }
