@@ -81,6 +81,8 @@ function createSuggestion(category, history, rng, requiredTag = null) {
       mealKey: mealHistoryKey(category.id, category.result),
       quick: category.quick === true,
       bigMeal: category.bigMeal === true,
+      recipeUrl: "",
+      description: "",
     };
   }
 
@@ -92,6 +94,8 @@ function createSuggestion(category, history, rng, requiredTag = null) {
     mealKey: meal.mealKey,
     quick: meal.quick === true,
     bigMeal: meal.bigMeal === true,
+    recipeUrl: typeof meal.recipeUrl === "string" ? meal.recipeUrl : "",
+    description: typeof meal.description === "string" ? meal.description : "",
   };
 }
 
