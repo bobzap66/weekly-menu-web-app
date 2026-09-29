@@ -5,6 +5,7 @@ import {
 
 import { menuData } from "./data.js";
 import { db } from "./firebase.js";
+import { DEFAULT_LIST_ID } from "./list-config.js";
 
 function sortByOrder(a, b) {
   return (a.order ?? 0) - (b.order ?? 0) || String(a.name ?? "").localeCompare(String(b.name ?? ""));
@@ -38,15 +39,13 @@ function categoryFromDocument(docSnapshot) {
   };
 }
 
-export async function loadRemoteCatalog() {
+export async function loadRemoteCatalog(listId = DEFAULT_LIST_ID) {
   const [categorySnapshot, mealSnapshot] = await Promise.all([
-    getDocs(collection(db, "categories")),
-    getDocs(collection(db, "meals")),
+    getDocs(collection(db, "lists", listId, "categories")),
+    getDocs(collection(db, "lists", listId, "meals")),
   ]);
 
-  if (categorySnapshot.empty) {
-    return false;
-  }
+  if (categorySnapshot.empty) return false;
 
   const categories = categorySnapshot.docs.map(categoryFromDocument).sort(sortByOrder);
   const meals = mealSnapshot.docs.map(mealFromDocument).filter((meal) => meal.active).sort(sortByOrder);
@@ -59,20 +58,15 @@ export async function loadRemoteCatalog() {
   }
 
   const mealsByCategory = new Map();
-
   for (const meal of meals) {
-    if (!mealsByCategory.has(meal.categoryId)) {
-      mealsByCategory.set(meal.categoryId, []);
-    }
+    if (!mealsByCategory.has(meal.categoryId)) mealsByCategory.set(meal.categoryId, []);
     mealsByCategory.get(meal.categoryId).push(meal);
   }
 
   const remoteCategories = categories
     .map((category) => {
       const categoryMeals = mealsByCategory.get(category.id) ?? [];
-      if (categoryMeals.length === 0) {
-        return null;
-      }
+      if (categoryMeals.length === 0) return null;
 
       return {
         id: category.id,
@@ -92,9 +86,7 @@ export async function loadRemoteCatalog() {
     })
     .filter(Boolean);
 
-  if (remoteCategories.length === 0) {
-    return false;
-  }
+  if (remoteCategories.length === 0) return false;
 
   menuData.categories.splice(0, menuData.categories.length, ...remoteCategories);
   return true;
