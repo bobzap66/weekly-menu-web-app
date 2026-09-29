@@ -52,6 +52,17 @@ test("can require a minimum number of quick candidates", () => {
   assert.equal(results.filter((result) => result.quick).length >= 3, true);
 });
 
+test("can require a candidate that is both quick and big", () => {
+  const results = generateMenu(menuData, () => 0.42, null, {
+    candidateCount: 5,
+    minimumBothCount: 1,
+  });
+
+  assert.equal(results.length, 5);
+  assert.equal(results[0].quick, true);
+  assert.equal(results[0].bigMeal, true);
+});
+
 test("can require distinct quick and big meal candidates", () => {
   const results = generateMenu(menuData, () => 0.42, null, {
     candidateCount: 7,
@@ -75,7 +86,7 @@ test("weighted selection respects item boundaries", () => {
   assert.equal(chooseWeighted(items, () => 0.26).name, "three");
 });
 
-test("applies a guaranteed modifier and preserves meal tags", () => {
+test("applies a guaranteed modifier and preserves meal metadata", () => {
   const fixture = {
     candidateCount: 1,
     categories: [
@@ -89,6 +100,8 @@ test("applies a guaranteed modifier and preserves meal tags", () => {
             weight: 1,
             quick: true,
             bigMeal: true,
+            description: "A short description.",
+            recipeUrl: "https://example.com/recipe",
             modifiers: [{ text: "with a modifier", chance: 1 }],
           },
         ],
@@ -100,6 +113,8 @@ test("applies a guaranteed modifier and preserves meal tags", () => {
   assert.equal(result.mealName, "Dinner with a modifier");
   assert.equal(result.quick, true);
   assert.equal(result.bigMeal, true);
+  assert.equal(result.description, "A short description.");
+  assert.equal(result.recipeUrl, "https://example.com/recipe");
 });
 
 test("recent meal history makes a repeated meal less likely", () => {
