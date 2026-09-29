@@ -3,6 +3,14 @@ import { getHistoryWeightMultiplier, mealHistoryKey } from "./history.js";
 const NEW_RECIPE_CHANCE = 0.10;
 const NEW_CATEGORY_CHANCE = 0.05;
 const LEGACY_PLACEHOLDER_CATEGORY_IDS = new Set(["new-recipe", "new-category"]);
+const LEGACY_NEW_RECIPE_MEALS = new Set([
+  "New Meat and Sides Recipe",
+  "New BBQ Recipe",
+  "New Skillet Meal Recipe",
+  "Misc New Casseroles",
+  "New Fast Food Recipe",
+  "New Seafood Recipe",
+]);
 
 function assertWeightedItems(items, label) {
   if (!Array.isArray(items) || items.length === 0) {
@@ -42,9 +50,13 @@ function itemMatchesTags(item, requiredTags = []) {
   return requiredTags.every((tag) => item[tag] === true);
 }
 
+function isRealMeal(meal) {
+  return !LEGACY_NEW_RECIPE_MEALS.has(meal.name);
+}
+
 function mealsWithHistoryWeights(category, history, requiredTags = []) {
   return category.meals
-    .filter((meal) => itemMatchesTags(meal, requiredTags))
+    .filter((meal) => isRealMeal(meal) && itemMatchesTags(meal, requiredTags))
     .map((meal) => {
       const mealKey = mealHistoryKey(category.id, meal.name);
       return {
@@ -56,7 +68,9 @@ function mealsWithHistoryWeights(category, history, requiredTags = []) {
 }
 
 function categoryCanProduceTags(category, tags) {
-  return Array.isArray(category.meals) && category.meals.some((meal) => itemMatchesTags(meal, tags));
+  return Array.isArray(category.meals) && category.meals.some(
+    (meal) => isRealMeal(meal) && itemMatchesTags(meal, tags),
+  );
 }
 
 function removeCategory(categoryPool, categoryId) {
@@ -141,7 +155,7 @@ export function generateMenu(menuData, rng = Math.random, history = null, option
       !excludedCategoryIds.has(category.id) &&
       !LEGACY_PLACEHOLDER_CATEGORY_IDS.has(category.id) &&
       Array.isArray(category.meals) &&
-      category.meals.length > 0,
+      category.meals.some(isRealMeal),
   );
 
   for (const [label, value] of [
