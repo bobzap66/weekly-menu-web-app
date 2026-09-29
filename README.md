@@ -2,7 +2,7 @@
 
 A static GitHub Pages dinner planner with a small Firebase-backed editable meal catalog.
 
-## Version 0.8.2 behavior
+## Version 0.9.0 behavior
 
 - Keeps the weekly planner itself on GitHub Pages; there is no custom application server.
 - Loads categories and meals from Cloud Firestore when the remote catalog is available.
@@ -13,13 +13,13 @@ A static GitHub Pages dinner planner with a small Firebase-backed editable meal 
 - Stores optional `recipeUrl` and short `description` fields with each meal.
 - Displays a meal's description in the planner whenever one exists.
 - Stores meal weight, category, Quick, Big Meal / Guests, and Active settings in Firestore.
+- Uses stable meal IDs as the canonical identity for generated meals, carryovers, and recency history.
 - Uses Firebase Authentication for editor sign-in.
 - Uses a Firestore UID allowlist for write access rather than trusting every authenticated Firebase user.
 - Continues storing the current weekly plan and recency history in browser `localStorage`.
 - Lets you return from either candidate selection or the finished schedule to **Edit week setup** if a day was planned incorrectly.
 - Includes the finished-week print workflow for a clean weekly menu printout.
-- Adds a week-level **Nothing new** option.
-- Includes a temporary authenticated migration utility for preparing stable meal IDs.
+- Includes a week-level **Nothing new** option.
 
 Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently check **Quick** and **Big Meal / Guests**, so one day can require either tag, both tags, or neither. A day with both boxes checked must receive a meal tagged both Quick and Big Meal.
 
@@ -27,24 +27,28 @@ Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No M
 
 The public site remains a static GitHub Pages application. Browser-side Firebase modules connect directly to Firebase Authentication and Cloud Firestore.
 
-Firestore uses two collections:
+Firestore currently uses two top-level collections:
 
 - `categories` — category name, weight, and ordering value.
-- `meals` — category ID, name, weight, `quick`, `bigMeal`, `active`, optional `recipeUrl`, optional `description`, order, optional `stableId`, and any existing modifiers.
+- `meals` — `stableId`, category ID, name, weight, `quick`, `bigMeal`, `active`, optional `recipeUrl`, optional `description`, order, and any existing modifiers.
 
 Reads are public so the normal planner does not require a login. Writes are restricted to explicitly allowed Firebase Authentication UIDs.
+
+All existing meal documents have been migrated so `stableId` equals the meal's existing Firestore document ID. New meals created through Manage Meals also receive a stable ID when they are created.
+
+The planner now requires stable IDs from the Firestore catalog. This means a meal can later be renamed or moved between categories without changing the identity used by carryovers or recency history.
 
 New-recipe and new-category prompts are generator behavior rather than catalog records. Legacy `new-recipe` or `new-category` category documents are ignored by the generator if they still exist.
 
 To approve another editor later, manually create that user in Firebase Authentication and add their UID to the array in the Firestore rules.
 
-## Stable meal ID migration
+## Pre-alpha data policy
 
-Manage Meals temporarily includes a two-step migration tool. **Preview migration** scans every meal document and reports meals that already use their Firestore document ID as `stableId`, meals missing `stableId`, conflicting values, and duplicate values. Preview never writes data.
+The app is still in a pre-alpha development phase. Schema and state changes prioritize the target architecture over backward compatibility with test data.
 
-**Apply stable IDs** is enabled only after a conflict-free preview. Before writing, it rescans the live collection and refuses to continue if the data changed or identity conflicts appeared. It then adds `stableId` only to meals where it is missing, using the meal document's existing Firestore document ID. It does not rename, move, or delete documents and does not overwrite a conflicting existing ID.
+Version 0.9.0 deliberately resets the old local weekly state and meal-history test data the first time the new code loads. The meal catalog in Firestore is preserved. New recency history starts fresh and uses stable meal IDs rather than category/name-derived keys.
 
-New meals created through Manage Meals automatically receive `stableId` equal to their new Firestore document ID. The migration panel is intended to be removed after the existing catalog has been migrated and verified.
+The temporary stable-ID migration panel has been removed now that all existing meal records are migrated and verified.
 
 ## Catalog management
 
@@ -80,13 +84,13 @@ The generator reserves enough qualifying candidates to make the planned week pos
 
 The candidate and scheduled screens both include **Edit week setup**. Returning to setup keeps active carryovers but clears generated candidates and assignments so the corrected week can be generated cleanly. The scheduled screen also retains **Change choices** for revising only the selected meals without changing the week structure.
 
-Carryovers remain automatic candidates unless explicitly removed, and their Quick/Big tags, descriptions, and recipe links travel with them.
+Carryovers remain automatic candidates unless explicitly removed, and their stable ID, Quick/Big tags, descriptions, and recipe links travel with them.
 
 ## Meal history weighting
 
 A meal eaten last week uses 15% of its normal weight. Its weight then recovers to 35%, 55%, 70%, 82%, and 92% over the following five weeks. After six weeks, it returns to its normal weight.
 
-Only the specific meal is penalized. A dinner marked for carryover is not treated as eaten and is inserted directly into the next week's candidates instead.
+Only the specific stable meal ID is penalized. A dinner marked for carryover is not treated as eaten and is inserted directly into the next week's candidates instead.
 
 ## Run locally
 
