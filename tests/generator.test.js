@@ -52,6 +52,19 @@ test("can require a minimum number of quick candidates", () => {
   assert.equal(results.filter((result) => result.quick).length >= 3, true);
 });
 
+test("can require distinct quick and big meal candidates", () => {
+  const results = generateMenu(menuData, () => 0.42, null, {
+    candidateCount: 7,
+    minimumQuickCount: 2,
+    minimumBigMealCount: 2,
+  });
+
+  assert.equal(results.length, 7);
+  assert.equal(results.slice(0, 2).every((result) => result.quick), true);
+  assert.equal(results.slice(2, 4).every((result) => result.bigMeal), true);
+  assert.equal(new Set(results.slice(0, 4).map((result) => result.categoryId)).size, 4);
+});
+
 test("weighted selection respects item boundaries", () => {
   const items = [
     { name: "one", weight: 1 },
