@@ -47,16 +47,17 @@ function mealsWithHistoryWeights(category, history) {
   });
 }
 
-export function generateMenu(menuData, rng = Math.random, history = null) {
-  const candidateCount = menuData.candidateCount;
-  const categoryPool = [...menuData.categories];
+export function generateMenu(menuData, rng = Math.random, history = null, options = {}) {
+  const candidateCount = options.candidateCount ?? menuData.candidateCount;
+  const excludedCategoryIds = new Set(options.excludeCategoryIds ?? []);
+  const categoryPool = menuData.categories.filter((category) => !excludedCategoryIds.has(category.id));
 
-  if (!Number.isInteger(candidateCount) || candidateCount < 1) {
-    throw new Error("Candidate count must be a positive integer.");
+  if (!Number.isInteger(candidateCount) || candidateCount < 0) {
+    throw new Error("Candidate count must be a non-negative integer.");
   }
 
   if (candidateCount > categoryPool.length) {
-    throw new Error("Candidate count cannot exceed the number of categories.");
+    throw new Error("Candidate count cannot exceed the number of available categories.");
   }
 
   const suggestions = [];
