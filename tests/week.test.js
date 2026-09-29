@@ -125,3 +125,19 @@ test("a no-cook week does not generate dinner candidates", () => {
 
   assert.deepEqual(suggestions, []);
 });
+
+test("Nothing new suppresses generated new recipe and new category ideas", () => {
+  const suggestions = buildNextWeekSuggestions(
+    menuData,
+    createHistory(),
+    [],
+    fiveDinnerPlan(),
+    () => 0,
+    { nothingNew: true },
+  );
+
+  assert.equal(suggestions.length, 8);
+  assert.equal(suggestions.some((item) => item.newIdea === true), false);
+  assert.equal(suggestions.some((item) => item.mealName === "New Recipe"), false);
+  assert.equal(suggestions.some((item) => item.mealName === "New Category"), false);
+});
