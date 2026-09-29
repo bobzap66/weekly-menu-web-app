@@ -10,17 +10,13 @@ export const DAYS = [
 
 export const DAY_TYPES = {
   NORMAL: "normal",
-  QUICK: "quick",
-  BIG: "big",
   LEFTOVERS: "leftovers",
   EATING_OUT: "eating-out",
   NO_MEAL: "no-meal",
 };
 
 export const DAY_TYPE_LABELS = {
-  [DAY_TYPES.NORMAL]: "Normal Dinner",
-  [DAY_TYPES.QUICK]: "Quick Meal",
-  [DAY_TYPES.BIG]: "Big Meal / Guests",
+  [DAY_TYPES.NORMAL]: "Dinner",
   [DAY_TYPES.LEFTOVERS]: "Leftovers",
   [DAY_TYPES.EATING_OUT]: "Eating Out",
   [DAY_TYPES.NO_MEAL]: "No Meal Planned",
@@ -30,13 +26,26 @@ export const DEFAULT_EXTRA_CHOICES = 3;
 
 const VALID_MODES = new Set(["setup", "choosing", "scheduled"]);
 const VALID_DAY_TYPES = new Set(Object.values(DAY_TYPES));
+const VALID_REQUIREMENTS = new Set(["quick", "bigMeal"]);
 
 function candidateId(suggestion, index) {
   return `${index}-${suggestion.categoryId}-${suggestion.mealName}`;
 }
 
 export function isMealDayType(type) {
-  return type === DAY_TYPES.NORMAL || type === DAY_TYPES.QUICK || type === DAY_TYPES.BIG;
+  return type === DAY_TYPES.NORMAL;
+}
+
+function createDayPlan(type = DAY_TYPES.NORMAL) {
+  return {
+    type,
+    quick: false,
+    bigMeal: false,
+  };
+}
+
+function cloneWeekPlan(weekPlan) {
+  return Object.fromEntries(DAYS.map((day) => [day, { ...weekPlan[day] }]));
 }
 
 export function createWeekPlan(defaultType = DAY_TYPES.NORMAL) {
@@ -44,14 +53,28 @@ export function createWeekPlan(defaultType = DAY_TYPES.NORMAL) {
     throw new Error("Invalid default day type.");
   }
 
-  return Object.fromEntries(DAYS.map((day) => [day, defaultType]));
+  return Object.fromEntries(DAYS.map((day) => [day, createDayPlan(defaultType)]));
+}
+
+function isValidDayPlan(dayPlan) {
+  if (
+    !dayPlan ||
+    typeof dayPlan !== "object" ||
+    !VALID_DAY_TYPES.has(dayPlan.type) ||
+    typeof dayPlan.quick !== "boolean" ||
+    typeof dayPlan.bigMeal !== "boolean"
+  ) {
+    return false;
+  }
+
+  return isMealDayType(dayPlan.type) || (!dayPlan.quick && !dayPlan.bigMeal);
 }
 
 export function isValidWeekPlan(weekPlan) {
   return Boolean(
     weekPlan &&
       typeof weekPlan === "object" &&
-      DAYS.every((day) => VALID_DAY_TYPES.has(weekPlan[day])),
+      DAYS.every((day) => isValidDayPlan(weekPlan[day])),
   );
 }
 
@@ -60,7 +83,7 @@ export function countMealDays(weekPlan) {
     return 0;
   }
 
-  return DAYS.filter((day) => isMealDayType(weekPlan[day])).length;
+  return DAYS.filter((day) => isMealDayType(weekPlan[day].type)).length;
 }
 
 export function countQuickMealDays(weekPlan) {
@@ -68,7 +91,7 @@ export function countQuickMealDays(weekPlan) {
     return 0;
   }
 
-  return DAYS.filter((day) => weekPlan[day] === DAY_TYPES.QUICK).length;
+  return DAYS.filter((day) => isMealDayType(weekPlan[day].type) && weekPlan[day].quick).length;
 }
 
 export function countBigMealDays(weekPlan) {
@@ -76,7 +99,17 @@ export function countBigMealDays(weekPlan) {
     return 0;
   }
 
-  return DAYS.filter((day) => weekPlan[day] === DAY_TYPES.BIG).length;
+  return DAYS.filter((day) => isMealDayType(weekPlan[day].type) && weekPlan[day].bigMeal).length;
+}
+
+export function countCombinedMealDays(weekPlan) {
+  if (!isValidWeekPlan(weekPlan)) {
+    return 0;
+  }
+
+  return DAYS.filter(
+    (day) => isMealDayType(weekPlan[day].type) && weekPlan[day].quick && weekPlan[day].bigMeal,
+  ).length;
 }
 
 export function createPlanningState(
@@ -93,10 +126,10 @@ export function createPlanningState(
   }
 
   return {
-    version: 5,
+    version: 6,
     mode: "setup",
     createdAt,
-    weekPlan: { ...weekPlan },
+    weekPlan: cloneWeekPlan(weekPlan),
     pendingCarryovers: carryoverMeals.map((meal) => ({ ...meal })),
     candidates: [],
     rejectedIds: [],
@@ -110,11 +143,38 @@ export function setDayType(state, day, type) {
     return state;
   }
 
+  const current = state.weekPlan[day];
+  const next = isMealDayType(type)
+    ? { type, quick: current.quick === true, bigMeal: current.bigMeal === true }
+    : createDayPlan(type);
+
   return {
     ...state,
     weekPlan: {
       ...state.weekPlan,
-      [day]: type,
+      [day]: next,
+    },
+  };
+}
+
+export function setDayRequirement(state, day, requirement, enabled) {
+  if (
+    state.mode !== "setup" ||
+    !DAYS.includes(day) ||
+    !VALID_REQUIREMENTS.has(requirement) ||
+    !isMealDayType(state.weekPlan[day]?.type)
+  ) {
+    return state;
+  }
+
+  return {
+    ...state,
+    weekPlan: {
+      ...state.weekPlan,
+      [day]: {
+        ...state.weekPlan[day],
+        [requirement]: Boolean(enabled),
+      },
     },
   };
 }
@@ -128,11 +188,31 @@ function splitMealsByRequirement(meals) {
   };
 }
 
+function getRequirementDayCounts(weekPlan) {
+  let both = 0;
+  let quickOnly = 0;
+  let bigOnly = 0;
+
+  for (const day of DAYS) {
+    const plan = weekPlan[day];
+    if (!isMealDayType(plan.type)) continue;
+    if (plan.quick && plan.bigMeal) both += 1;
+    else if (plan.quick) quickOnly += 1;
+    else if (plan.bigMeal) bigOnly += 1;
+  }
+
+  return { both, quickOnly, bigOnly };
+}
+
 function requirementShortfallForMeals(meals, weekPlan) {
-  const { quickOnly, bigOnly, both } = splitMealsByRequirement(meals);
-  const quickNeedsBoth = Math.max(0, countQuickMealDays(weekPlan) - quickOnly.length);
-  const bigNeedsBoth = Math.max(0, countBigMealDays(weekPlan) - bigOnly.length);
-  return Math.max(0, quickNeedsBoth + bigNeedsBoth - both.length);
+  const requirements = getRequirementDayCounts(weekPlan);
+  const available = splitMealsByRequirement(meals);
+  const missingBoth = Math.max(0, requirements.both - available.both.length);
+  const remainingBoth = Math.max(0, available.both.length - requirements.both);
+  const quickDeficit = Math.max(0, requirements.quickOnly - available.quickOnly.length);
+  const bigDeficit = Math.max(0, requirements.bigOnly - available.bigOnly.length);
+
+  return missingBoth + Math.max(0, quickDeficit + bigDeficit - remainingBoth);
 }
 
 function createDayAssignments(candidates, rejectedIds, weekPlan) {
@@ -145,26 +225,38 @@ function createDayAssignments(candidates, rejectedIds, weekPlan) {
 
   const assignments = {};
   const usedIds = new Set();
-  const quickDays = DAYS.filter((day) => weekPlan[day] === DAY_TYPES.QUICK);
-  const bigDays = DAYS.filter((day) => weekPlan[day] === DAY_TYPES.BIG);
-  const normalDays = DAYS.filter((day) => weekPlan[day] === DAY_TYPES.NORMAL);
+  const bothDays = DAYS.filter(
+    (day) => isMealDayType(weekPlan[day].type) && weekPlan[day].quick && weekPlan[day].bigMeal,
+  );
+  const quickDays = DAYS.filter(
+    (day) => isMealDayType(weekPlan[day].type) && weekPlan[day].quick && !weekPlan[day].bigMeal,
+  );
+  const bigDays = DAYS.filter(
+    (day) => isMealDayType(weekPlan[day].type) && !weekPlan[day].quick && weekPlan[day].bigMeal,
+  );
+  const normalDays = DAYS.filter(
+    (day) => isMealDayType(weekPlan[day].type) && !weekPlan[day].quick && !weekPlan[day].bigMeal,
+  );
   const { quickOnly, bigOnly, both } = splitMealsByRequirement(selected);
   const remainingBoth = [...both];
 
+  for (const day of bothDays) {
+    const meal = remainingBoth.shift();
+    if (!meal) return {};
+    assignments[meal.id] = day;
+    usedIds.add(meal.id);
+  }
+
   for (const day of quickDays) {
     const meal = quickOnly.shift() ?? remainingBoth.shift();
-    if (!meal) {
-      return {};
-    }
+    if (!meal) return {};
     assignments[meal.id] = day;
     usedIds.add(meal.id);
   }
 
   for (const day of bigDays) {
     const meal = bigOnly.shift() ?? remainingBoth.shift();
-    if (!meal) {
-      return {};
-    }
+    if (!meal) return {};
     assignments[meal.id] = day;
     usedIds.add(meal.id);
   }
@@ -172,9 +264,7 @@ function createDayAssignments(candidates, rejectedIds, weekPlan) {
   const remainingMeals = selected.filter((candidate) => !usedIds.has(candidate.id));
   for (let index = 0; index < normalDays.length; index += 1) {
     const meal = remainingMeals[index];
-    if (!meal) {
-      return {};
-    }
+    if (!meal) return {};
     assignments[meal.id] = normalDays[index];
   }
 
@@ -210,10 +300,10 @@ export function createMenuState(
   }));
 
   const state = {
-    version: 5,
+    version: 6,
     mode: targetMealCount === 0 ? "scheduled" : "choosing",
     createdAt,
-    weekPlan: { ...weekPlan },
+    weekPlan: cloneWeekPlan(weekPlan),
     pendingCarryovers: targetMealCount === 0
       ? deferredCarryovers.map((meal) => ({ ...meal }))
       : [],
@@ -252,6 +342,14 @@ export function getBigMealShortfall(state) {
   return Math.max(0, bigNeeded - selectedBig);
 }
 
+export function getCombinedMealShortfall(state) {
+  const bothNeeded = countCombinedMealDays(state.weekPlan);
+  const selectedBoth = getSelectedMeals(state).filter(
+    (candidate) => candidate.quick === true && candidate.bigMeal === true,
+  ).length;
+  return Math.max(0, bothNeeded - selectedBoth);
+}
+
 export function getMealRequirementShortfall(state) {
   return requirementShortfallForMeals(getSelectedMeals(state), state.weekPlan);
 }
@@ -276,14 +374,10 @@ function finalizeIfReady(state) {
 }
 
 export function toggleRejection(state, candidateIdValue) {
-  if (state.mode !== "choosing") {
-    return state;
-  }
+  if (state.mode !== "choosing") return state;
 
   const candidateExists = state.candidates.some((candidate) => candidate.id === candidateIdValue);
-  if (!candidateExists) {
-    return state;
-  }
+  if (!candidateExists) return state;
 
   const rejected = new Set(state.rejectedIds);
   const carryovers = new Set(state.carryoverIds);
@@ -291,9 +385,7 @@ export function toggleRejection(state, candidateIdValue) {
   if (rejected.has(candidateIdValue)) {
     rejected.delete(candidateIdValue);
   } else {
-    if (rejected.size >= getRequiredRejectionCount(state)) {
-      return state;
-    }
+    if (rejected.size >= getRequiredRejectionCount(state)) return state;
     rejected.add(candidateIdValue);
     carryovers.delete(candidateIdValue);
   }
@@ -306,9 +398,7 @@ export function toggleRejection(state, candidateIdValue) {
 }
 
 export function clearRejections(state) {
-  if (state.mode !== "choosing") {
-    return state;
-  }
+  if (state.mode !== "choosing") return state;
 
   return {
     ...state,
@@ -318,21 +408,14 @@ export function clearRejections(state) {
 }
 
 export function toggleCarryover(state, candidateIdValue) {
-  if (state.mode !== "scheduled") {
-    return state;
-  }
+  if (state.mode !== "scheduled") return state;
 
   const selected = new Set(getSelectedMeals(state).map((candidate) => candidate.id));
-  if (!selected.has(candidateIdValue)) {
-    return state;
-  }
+  if (!selected.has(candidateIdValue)) return state;
 
   const carryovers = new Set(state.carryoverIds);
-  if (carryovers.has(candidateIdValue)) {
-    carryovers.delete(candidateIdValue);
-  } else {
-    carryovers.add(candidateIdValue);
-  }
+  if (carryovers.has(candidateIdValue)) carryovers.delete(candidateIdValue);
+  else carryovers.add(candidateIdValue);
 
   return {
     ...state,
@@ -351,29 +434,29 @@ export function getEatenMeals(state) {
   return getSelectedMeals(state).filter((candidate) => !carryovers.has(candidate.id));
 }
 
+function mealMeetsDayPlan(meal, dayPlan) {
+  if (!meal || !isMealDayType(dayPlan.type)) return false;
+  if (dayPlan.quick && meal.quick !== true) return false;
+  if (dayPlan.bigMeal && meal.bigMeal !== true) return false;
+  return true;
+}
+
 function assignmentsMeetRequirements(state, assignments) {
   const candidateById = new Map(state.candidates.map((candidate) => [candidate.id, candidate]));
 
   return DAYS.every((day) => {
-    const type = state.weekPlan[day];
-    if (type !== DAY_TYPES.QUICK && type !== DAY_TYPES.BIG) {
-      return true;
-    }
+    const dayPlan = state.weekPlan[day];
+    if (!isMealDayType(dayPlan.type)) return true;
 
     const mealId = Object.entries(assignments).find(([, assignedDay]) => assignedDay === day)?.[0];
-    if (!mealId) {
-      return false;
-    }
-
-    const meal = candidateById.get(mealId);
-    return type === DAY_TYPES.QUICK ? meal?.quick === true : meal?.bigMeal === true;
+    return mealId ? mealMeetsDayPlan(candidateById.get(mealId), dayPlan) : false;
   });
 }
 
 export function canAssignMealDay(state, candidateIdValue, day) {
   if (
     state.mode !== "scheduled" ||
-    !isMealDayType(state.weekPlan[day]) ||
+    !isMealDayType(state.weekPlan[day]?.type) ||
     !(candidateIdValue in state.dayAssignments)
   ) {
     return false;
@@ -386,17 +469,13 @@ export function canAssignMealDay(state, candidateIdValue, day) {
   );
 
   assignments[candidateIdValue] = day;
-  if (occupyingEntry) {
-    assignments[occupyingEntry[0]] = previousDay;
-  }
+  if (occupyingEntry) assignments[occupyingEntry[0]] = previousDay;
 
   return assignmentsMeetRequirements(state, assignments);
 }
 
 export function assignMealDay(state, candidateIdValue, day) {
-  if (!canAssignMealDay(state, candidateIdValue, day)) {
-    return state;
-  }
+  if (!canAssignMealDay(state, candidateIdValue, day)) return state;
 
   const assignments = { ...state.dayAssignments };
   const previousDay = assignments[candidateIdValue];
@@ -405,9 +484,7 @@ export function assignMealDay(state, candidateIdValue, day) {
   );
 
   assignments[candidateIdValue] = day;
-  if (occupyingEntry) {
-    assignments[occupyingEntry[0]] = previousDay;
-  }
+  if (occupyingEntry) assignments[occupyingEntry[0]] = previousDay;
 
   return {
     ...state,
@@ -420,17 +497,17 @@ export function getScheduledWeek(state) {
 
   return DAYS.map((day) => ({
     day,
-    type: state.weekPlan[day],
-    meal: isMealDayType(state.weekPlan[day])
+    type: state.weekPlan[day].type,
+    quickRequired: state.weekPlan[day].quick,
+    bigMealRequired: state.weekPlan[day].bigMeal,
+    meal: isMealDayType(state.weekPlan[day].type)
       ? selected.find((candidate) => state.dayAssignments[candidate.id] === day)
       : null,
   }));
 }
 
 export function reopenChoices(state) {
-  if (state.mode !== "scheduled" || countMealDays(state.weekPlan) === 0) {
-    return state;
-  }
+  if (state.mode !== "scheduled" || countMealDays(state.weekPlan) === 0) return state;
 
   return {
     ...state,
@@ -442,7 +519,7 @@ export function reopenChoices(state) {
 export function isValidMenuState(value) {
   if (
     !value ||
-    value.version !== 5 ||
+    value.version !== 6 ||
     !VALID_MODES.has(value.mode) ||
     typeof value.createdAt !== "string" ||
     !isValidWeekPlan(value.weekPlan) ||
@@ -466,9 +543,7 @@ export function isValidMenuState(value) {
   }
 
   const candidateIds = new Set(value.candidates.map((candidate) => candidate.id));
-  if (candidateIds.size !== value.candidates.length) {
-    return false;
-  }
+  if (candidateIds.size !== value.candidates.length) return false;
 
   const requiredRejections = getRequiredRejectionCount(value);
   if (
@@ -479,9 +554,7 @@ export function isValidMenuState(value) {
   }
 
   const rejected = new Set(value.rejectedIds);
-  if (!value.carryoverIds.every((id) => candidateIds.has(id) && !rejected.has(id))) {
-    return false;
-  }
+  if (!value.carryoverIds.every((id) => candidateIds.has(id) && !rejected.has(id))) return false;
 
   if (value.mode === "choosing") {
     return Object.keys(value.dayAssignments).length === 0;
@@ -498,7 +571,7 @@ export function isValidMenuState(value) {
   const selectedIds = getSelectedMeals(value).map((candidate) => candidate.id);
   const assignedIds = Object.keys(value.dayAssignments);
   const assignedDays = Object.values(value.dayAssignments);
-  const plannedMealDays = DAYS.filter((day) => isMealDayType(value.weekPlan[day]));
+  const plannedMealDays = DAYS.filter((day) => isMealDayType(value.weekPlan[day].type));
 
   return (
     assignedIds.length === selectedIds.length &&
