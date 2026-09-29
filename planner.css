@@ -1,0 +1,97 @@
+.meal-description {
+  margin: 0.7rem 0 0;
+  color: #655e52;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.is-rejected .meal-description {
+  opacity: 0.48;
+}
+
+.day-plan-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: min(22rem, 65%);
+}
+
+.day-plan-controls .day-type-select {
+  width: min(15rem, 100%);
+}
+
+.day-requirements {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.requirement-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  border: 1px solid rgb(74 63 45 / 16%);
+  border-radius: 999px;
+  padding: 0.38rem 0.65rem;
+  color: #5d564b;
+  background: #fffdf8;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.requirement-check input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: #9b4c26;
+}
+
+.requirement-check:has(input:checked) {
+  border-color: rgb(155 76 38 / 36%);
+  background: #f8eadc;
+}
+
+.requirement-quick:has(input:checked) {
+  color: #315777;
+  background: #dceaf5;
+}
+
+.requirement-bigMeal:has(input:checked) {
+  color: #75451f;
+  background: #f4dfc8;
+}
+
+.schedule-day-badges {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.day-type-normal {
+  color: #655e52;
+  background: #eee7da;
+}
+
+@media (max-width: 640px) {
+  .day-plan-controls {
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .day-plan-controls .day-type-select {
+    width: 100%;
+  }
+
+  .day-requirements {
+    justify-content: flex-start;
+  }
+
+  .schedule-day-badges {
+    justify-content: flex-start;
+  }
+}
