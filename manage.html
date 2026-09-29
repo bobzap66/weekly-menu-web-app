@@ -6,7 +6,7 @@
     <meta name="description" content="Sign in to manage Weekly Menu meal lists." />
     <title>Manage Meals — Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./manage.css?v=0.10.1" />
+    <link rel="stylesheet" href="./manage.css?v=0.10.2" />
   </head>
   <body>
     <main class="app-shell admin-shell">
@@ -59,7 +59,7 @@
           <div class="admin-section-heading">
             <div>
               <p class="step-label">Meal lists</p>
-              <h2 id="lists-heading">Choose, create, or duplicate a list</h2>
+              <h2 id="lists-heading">Choose, create, duplicate, or delete a list</h2>
             </div>
           </div>
           <div class="list-management-grid">
@@ -84,9 +84,17 @@
                 </label>
                 <button id="duplicate-list-button" class="action-button secondary-button" type="submit">Duplicate active list</button>
               </form>
+              <form id="delete-list-form" class="delete-list-form">
+                <label>
+                  <span>Delete active list</span>
+                  <input id="delete-list-confirm" type="text" maxlength="80" autocomplete="off" disabled />
+                </label>
+                <button id="delete-list-button" class="action-button secondary-button danger-button" type="submit" disabled>Delete list</button>
+                <p id="delete-list-help" class="delete-list-help">Choose a list before deleting.</p>
+              </form>
             </div>
           </div>
-          <p class="admin-help">New lists start empty and private. Duplicated lists also start private and copy every category and meal from the active list while preserving their IDs inside the new list. Family Dinners remains public-readable so the signed-out planner still has a default catalog.</p>
+          <p class="admin-help">New lists start empty and private. Duplicated lists also start private and copy every category and meal from the active list while preserving their IDs inside the new list. Deleting a list permanently removes its categories and meals. Family Dinners is protected because it remains the public catalog used by the signed-out planner.</p>
           <p id="list-status" class="admin-status" aria-live="polite"></p>
         </section>
 
@@ -197,6 +205,7 @@
       </section>
     </main>
 
-    <script type="module" src="./src/manage-list.js?v=0.10.1"></script>
+    <script type="module" src="./src/manage-list.js?v=0.10.2"></script>
+    <script type="module" src="./src/list-delete.js?v=0.10.2"></script>
   </body>
 </html>
