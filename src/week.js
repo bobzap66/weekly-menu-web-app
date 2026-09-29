@@ -1,6 +1,7 @@
 import { generateMenu } from "./generator.js";
 import {
   DEFAULT_EXTRA_CHOICES,
+  countBigMealDays,
   countMealDays,
   countQuickMealDays,
   isValidWeekPlan,
@@ -13,7 +14,29 @@ function carryoverSuggestion(meal) {
     mealName: meal.mealName,
     mealKey: meal.mealKey,
     quick: meal.quick === true,
+    bigMeal: meal.bigMeal === true,
     carriedOver: true,
+  };
+}
+
+function remainingRequirementsAfterCarryovers(carryovers, weekPlan) {
+  const quickOnly = carryovers.filter((meal) => meal.quick && !meal.bigMeal).length;
+  const bigOnly = carryovers.filter((meal) => !meal.quick && meal.bigMeal).length;
+  let both = carryovers.filter((meal) => meal.quick && meal.bigMeal).length;
+
+  let quickRemaining = Math.max(0, countQuickMealDays(weekPlan) - quickOnly);
+  let bigRemaining = Math.max(0, countBigMealDays(weekPlan) - bigOnly);
+
+  const bothForQuick = Math.min(both, quickRemaining);
+  quickRemaining -= bothForQuick;
+  both -= bothForQuick;
+
+  const bothForBig = Math.min(both, bigRemaining);
+  bigRemaining -= bothForBig;
+
+  return {
+    quickRemaining,
+    bigRemaining,
   };
 }
 
@@ -38,22 +61,19 @@ export function buildNextWeekSuggestions(
   }
 
   const carryovers = carryoverMeals.map(carryoverSuggestion);
-  const quickCarryoverCount = carryovers.filter((meal) => meal.quick).length;
-  const minimumQuickGenerated = Math.max(
-    0,
-    countQuickMealDays(weekPlan) - quickCarryoverCount,
-  );
+  const { quickRemaining, bigRemaining } = remainingRequirementsAfterCarryovers(carryovers, weekPlan);
 
   const candidateCount = Math.max(
     targetMealCount + DEFAULT_EXTRA_CHOICES,
-    carryovers.length + minimumQuickGenerated,
+    carryovers.length + quickRemaining + bigRemaining,
   );
 
   const generatedCount = candidateCount - carryovers.length;
   const generated = generateMenu(menuData, rng, history, {
     candidateCount: generatedCount,
     excludeCategoryIds: carryovers.map((meal) => meal.categoryId),
-    minimumQuickCount: minimumQuickGenerated,
+    minimumQuickCount: quickRemaining,
+    minimumBigMealCount: bigRemaining,
   });
 
   return [...carryovers, ...generated];
