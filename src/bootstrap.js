@@ -6,6 +6,7 @@ try {
   if (localStorage.getItem(STABLE_ID_RESET_KEY) !== "done") {
     localStorage.removeItem("weekly-menu:v6");
     localStorage.removeItem("weekly-menu:history:v1");
+    localStorage.removeItem("weekly-menu:nothing-new");
     localStorage.setItem(STABLE_ID_RESET_KEY, "done");
   }
 } catch {
