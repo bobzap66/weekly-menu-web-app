@@ -1,4 +1,4 @@
-import { loadRemoteCatalog } from "./catalog.js?v=0.9.0";
+import { loadRemoteCatalog } from "./catalog.js?v=0.9.2";
 
 const STABLE_ID_RESET_KEY = "weekly-menu:stable-id-reset:v2";
 
@@ -15,10 +15,10 @@ try {
 
 try {
   const loaded = await loadRemoteCatalog();
-  document.documentElement.dataset.catalogSource = loaded ? "firestore" : "bundled";
+  document.documentElement.dataset.catalogSource = loaded ? "firestore-list" : "bundled";
 } catch (error) {
-  console.warn("Could not load the Firestore meal catalog; using bundled meals instead.", error);
+  console.warn("Could not load the Firestore meal list; using bundled meals instead.", error);
   document.documentElement.dataset.catalogSource = "bundled";
 }
 
-await import("./app.js?v=0.9.0");
+await import("./app.js?v=0.9.2");
