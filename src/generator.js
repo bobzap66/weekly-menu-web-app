@@ -1,5 +1,9 @@
 import { getHistoryWeightMultiplier, mealHistoryKey } from "./history.js";
 
+const NEW_RECIPE_CHANCE = 0.10;
+const NEW_CATEGORY_CHANCE = 0.05;
+const LEGACY_PLACEHOLDER_CATEGORY_IDS = new Set(["new-recipe", "new-category"]);
+
 function assertWeightedItems(items, label) {
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error(`${label} must contain at least one item.`);
@@ -52,8 +56,7 @@ function mealsWithHistoryWeights(category, history, requiredTags = []) {
 }
 
 function categoryCanProduceTags(category, tags) {
-  if (category.result) return itemMatchesTags(category, tags);
-  return category.meals.some((meal) => itemMatchesTags(meal, tags));
+  return Array.isArray(category.meals) && category.meals.some((meal) => itemMatchesTags(meal, tags));
 }
 
 function removeCategory(categoryPool, categoryId) {
@@ -61,22 +64,41 @@ function removeCategory(categoryPool, categoryId) {
   if (index >= 0) categoryPool.splice(index, 1);
 }
 
-function createSuggestion(category, history, rng, requiredTags = []) {
-  if (category.result) {
-    if (!itemMatchesTags(category, requiredTags)) {
-      throw new Error(`${category.name} cannot satisfy the required meal tags.`);
-    }
+function createNewRecipeSuggestion(category) {
+  return {
+    categoryId: category.id,
+    categoryName: category.name,
+    mealName: "New Recipe",
+    mealKey: `${category.id}:__new-recipe`,
+    quick: false,
+    bigMeal: false,
+    recipeUrl: "",
+    description: `Try a new ${category.name} recipe.`,
+    newIdea: true,
+  };
+}
 
-    return {
-      categoryId: category.id,
-      categoryName: category.name,
-      mealName: category.result,
-      mealKey: mealHistoryKey(category.id, category.result),
-      quick: category.quick === true,
-      bigMeal: category.bigMeal === true,
-      recipeUrl: "",
-      description: "",
-    };
+function createNewCategorySuggestion() {
+  return {
+    categoryId: "__new-category",
+    categoryName: "New Category",
+    mealName: "New Category",
+    mealKey: "__new-category:__new-category",
+    quick: false,
+    bigMeal: false,
+    recipeUrl: "",
+    description: "Try something from a category that is not already in the rotation.",
+    newIdea: true,
+  };
+}
+
+function createSuggestion(category, history, rng, requiredTags = [], allowNewRecipe = true) {
+  if (
+    allowNewRecipe &&
+    requiredTags.length === 0 &&
+    rng() < NEW_RECIPE_CHANCE
+  ) {
+    return createNewRecipeSuggestion(category);
   }
 
   const meal = chooseWeighted(mealsWithHistoryWeights(category, history, requiredTags), rng);
@@ -104,7 +126,7 @@ function takeRequiredSuggestion(categoryPool, history, rng, requiredTags, avoidT
   const pool = preferred.length > 0 ? preferred : capable;
   const category = chooseWeighted(pool, rng);
   removeCategory(categoryPool, category.id);
-  return createSuggestion(category, history, rng, requiredTags);
+  return createSuggestion(category, history, rng, requiredTags, false);
 }
 
 export function generateMenu(menuData, rng = Math.random, history = null, options = {}) {
@@ -112,8 +134,15 @@ export function generateMenu(menuData, rng = Math.random, history = null, option
   const minimumBothCount = options.minimumBothCount ?? 0;
   const minimumQuickCount = options.minimumQuickCount ?? 0;
   const minimumBigMealCount = options.minimumBigMealCount ?? 0;
+  const allowNew = options.allowNew !== false;
   const excludedCategoryIds = new Set(options.excludeCategoryIds ?? []);
-  const categoryPool = menuData.categories.filter((category) => !excludedCategoryIds.has(category.id));
+  const categoryPool = menuData.categories.filter(
+    (category) =>
+      !excludedCategoryIds.has(category.id) &&
+      !LEGACY_PLACEHOLDER_CATEGORY_IDS.has(category.id) &&
+      Array.isArray(category.meals) &&
+      category.meals.length > 0,
+  );
 
   for (const [label, value] of [
     ["Candidate count", candidateCount],
@@ -127,7 +156,7 @@ export function generateMenu(menuData, rng = Math.random, history = null, option
   }
 
   if (candidateCount > categoryPool.length) {
-    throw new Error("Candidate count cannot exceed the number of available categories.");
+    throw new Error("Candidate count cannot exceed the number of available meal categories.");
   }
 
   if (minimumBothCount + minimumQuickCount + minimumBigMealCount > candidateCount) {
@@ -148,10 +177,14 @@ export function generateMenu(menuData, rng = Math.random, history = null, option
     suggestions.push(takeRequiredSuggestion(categoryPool, history, rng, ["bigMeal"], ["quick"]));
   }
 
+  if (allowNew && suggestions.length < candidateCount && rng() < NEW_CATEGORY_CHANCE) {
+    suggestions.push(createNewCategorySuggestion());
+  }
+
   while (suggestions.length < candidateCount) {
     const category = chooseWeighted(categoryPool, rng);
     removeCategory(categoryPool, category.id);
-    suggestions.push(createSuggestion(category, history, rng));
+    suggestions.push(createSuggestion(category, history, rng, [], allowNew));
   }
 
   return suggestions;
