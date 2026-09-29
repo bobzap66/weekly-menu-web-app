@@ -25,6 +25,10 @@ button {
   font: inherit;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .app-shell {
   width: min(100% - 2rem, 54rem);
   margin: 0 auto;
@@ -69,7 +73,7 @@ h2 {
 }
 
 .intro {
-  max-width: 36rem;
+  max-width: 39rem;
   margin-bottom: 0;
   color: #595449;
   font-size: 1.08rem;
@@ -90,36 +94,70 @@ h2 {
   justify-content: space-between;
   gap: 1.5rem;
   padding: 1.5rem;
-  border-bottom: 1px solid rgb(74 63 45 / 12%);
 }
 
-#generate-button {
+.action-row {
+  display: flex;
   flex: 0 0 auto;
-  border: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.action-button {
   border-radius: 999px;
   padding: 0.78rem 1.1rem;
-  color: #fffdf8;
-  background: #9b4c26;
   font-weight: 750;
   cursor: pointer;
-  box-shadow: 0 0.4rem 1rem rgb(155 76 38 / 24%);
   transition:
     transform 120ms ease,
-    background 120ms ease;
+    background 120ms ease,
+    border-color 120ms ease;
 }
 
-#generate-button:hover {
+.primary-button {
+  border: 0;
+  color: #fffdf8;
+  background: #9b4c26;
+  box-shadow: 0 0.4rem 1rem rgb(155 76 38 / 24%);
+}
+
+.primary-button:hover {
   background: #7f3c1d;
   transform: translateY(-1px);
 }
 
-#generate-button:active {
+.secondary-button {
+  border: 1px solid rgb(74 63 45 / 20%);
+  color: #524b40;
+  background: transparent;
+}
+
+.secondary-button:hover {
+  border-color: rgb(74 63 45 / 36%);
+  background: #f7f0e5;
+  transform: translateY(-1px);
+}
+
+.action-button:active {
   transform: translateY(1px);
 }
 
-#generate-button:focus-visible {
+.action-button:focus-visible,
+.meal-choice:focus-visible {
   outline: 3px solid #e7a35f;
   outline-offset: 3px;
+}
+
+.selection-status {
+  margin: 0;
+  padding: 0.85rem 1.5rem;
+  border-top: 1px solid rgb(74 63 45 / 10%);
+  border-bottom: 1px solid rgb(74 63 45 / 10%);
+  color: #655e52;
+  background: rgb(244 239 227 / 55%);
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .menu-list {
@@ -134,9 +172,11 @@ h2 {
 .menu-item {
   position: relative;
   min-height: 7.5rem;
-  padding: 1.45rem 1.5rem 1.35rem 4rem;
   border-bottom: 1px solid rgb(74 63 45 / 10%);
   counter-increment: dinners;
+  transition:
+    background 120ms ease,
+    opacity 120ms ease;
 }
 
 .menu-item:nth-child(odd) {
@@ -149,6 +189,7 @@ h2 {
 
 .menu-item::before {
   position: absolute;
+  z-index: 1;
   top: 1.42rem;
   left: 1.5rem;
   display: grid;
@@ -161,6 +202,28 @@ h2 {
   content: counter(dinners);
   font-size: 0.8rem;
   font-weight: 800;
+  pointer-events: none;
+}
+
+.meal-choice,
+.meal-content {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 7.5rem;
+  padding: 1.45rem 1.5rem 1.35rem 4rem;
+  text-align: left;
+}
+
+.meal-choice {
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.meal-choice:hover {
+  background: rgb(244 229 212 / 42%);
 }
 
 .meal-name {
@@ -179,14 +242,41 @@ h2 {
   text-transform: uppercase;
 }
 
+.is-rejected {
+  background: rgb(112 100 83 / 8%);
+}
+
+.is-rejected .meal-name,
+.is-rejected .category-name {
+  opacity: 0.48;
+}
+
+.is-rejected .meal-name {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.removed-label {
+  display: inline-block;
+  margin-top: 0.7rem;
+  border-radius: 999px;
+  padding: 0.22rem 0.5rem;
+  color: #6f4935;
+  background: #efe0d2;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
 @media (max-width: 640px) {
   .menu-heading-row {
     align-items: stretch;
     flex-direction: column;
   }
 
-  #generate-button {
-    align-self: flex-start;
+  .action-row {
+    justify-content: flex-start;
   }
 
   .menu-list {
@@ -206,7 +296,8 @@ h2 {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #generate-button {
+  .action-button,
+  .menu-item {
     transition: none;
   }
 }
