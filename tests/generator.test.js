@@ -43,3 +43,34 @@ test("applies a guaranteed modifier", () => {
 
   assert.equal(generateMenu(fixture, () => 0)[0].mealName, "Dinner with a modifier");
 });
+
+test("recent meal history makes a repeated meal less likely", () => {
+  const fixture = {
+    candidateCount: 1,
+    categories: [
+      {
+        id: "test",
+        name: "Test",
+        weight: 1,
+        meals: [
+          { name: "Recent Dinner", weight: 1 },
+          { name: "Other Dinner", weight: 1 },
+        ],
+      },
+    ],
+  };
+  const history = {
+    version: 1,
+    weeks: [
+      {
+        weekId: "last-week",
+        createdAt: "2026-09-22T00:00:00Z",
+        mealKeys: ["test:Recent Dinner"],
+      },
+    ],
+  };
+  const rolls = [0, 0.4];
+  const rng = () => rolls.shift() ?? 0;
+
+  assert.equal(generateMenu(fixture, rng, history)[0].mealName, "Other Dinner");
+});
