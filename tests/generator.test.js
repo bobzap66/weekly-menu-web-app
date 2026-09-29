@@ -43,4 +43,3 @@ test("applies a guaranteed modifier", () => {
 
   assert.equal(generateMenu(fixture, () => 0)[0].mealName, "Dinner with a modifier");
 });
-
