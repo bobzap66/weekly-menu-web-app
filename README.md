@@ -2,12 +2,13 @@
 
 A static GitHub Pages dinner planner with Firebase-backed editable meal lists.
 
-## Version 0.10.0 behavior
+## Version 0.10.1 behavior
 
 - Keeps the planner itself on GitHub Pages; there is no custom application server.
 - Stores meal catalogs under Firestore `lists/{listId}/...` documents and subcollections.
 - Lets signed-in users create multiple named meal lists and switch between lists they own.
-- New lists start empty and private.
+- Lets signed-in users duplicate the active list into a new independent private list.
+- New empty lists start private; duplicated lists also start private.
 - Remembers the active list in browser storage.
 - While signed in, the planner uses the currently selected owned list.
 - While signed out, the planner uses the public **Family Dinners** list.
@@ -55,11 +56,13 @@ lists/
         order
 ```
 
-The original list uses the document ID `default` and is named **Family Dinners**. It remains `publicRead: true` so signed-out visitors can use the normal planner without an account. Lists created through Manage Meals use generated Firestore document IDs and default to `publicRead: false`.
+The original list uses the document ID `default` and is named **Family Dinners**. It remains `publicRead: true` so signed-out visitors can use the normal planner without an account. Lists created or duplicated through Manage Meals use generated Firestore document IDs and default to `publicRead: false`.
 
 The previous top-level `categories` and `meals` collections remain physically present in Firestore as an inert rollback snapshot, but the current security rules grant the application no read or write access to them.
 
 All existing Family Dinners meal documents retain their original Firestore document IDs. Each meal's `stableId` equals its document ID, so renaming or recategorizing a meal does not change its identity.
+
+Duplicating a list preserves every category document ID, meal document ID, stable meal ID, weight, tag, description, recipe link, order value, and other stored meal/category fields inside the copy. Because each copy lives under a different list document, the copied catalog can then be edited independently without affecting its source.
 
 ## Active-list behavior
 
@@ -85,9 +88,11 @@ The Firebase browser configuration is intentionally present in client-side code.
 
 ## Catalog management
 
-The Manage Meals page includes a list selector and a Create List form. Each list has independent categories, meal records, weights, Quick/Big Meal tags, descriptions, recipe links, and Active state.
+The Manage Meals page includes a list selector, a Create List form, and a Duplicate Active List form. Each list has independent categories, meal records, weights, Quick/Big Meal tags, descriptions, recipe links, and Active state.
 
-New lists are intentionally empty in v0.10.0. Add at least one category and meal before using a new list for planning. List cloning and starter templates are planned as later features.
+Creating a new list produces an empty private list. Duplicating the active list creates a new private list containing exact copies of the source categories and meals. The copied list is selected automatically after duplication.
+
+List duplication copies documents in bounded Firestore batches so larger catalogs are not tied to a single 500-write transaction. If a copy fails after the destination list is created, the app attempts to remove any copied child documents and the incomplete destination list before reporting the failure.
 
 The catalog browser can be filtered to one category. Selecting a category exposes its current weight and meal count and allows direct editing.
 
