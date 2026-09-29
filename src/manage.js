@@ -430,7 +430,8 @@ mealForm.addEventListener("submit", async (event) => {
       const maxOrder = meals
         .filter((meal) => meal.categoryId === categoryId)
         .reduce((max, meal) => Math.max(max, Number(meal.order) || 0), -1);
-      await addDoc(collection(db, "meals"), { ...values, order: maxOrder + 1 });
+      const mealRef = await addDoc(collection(db, "meals"), { ...values, order: maxOrder + 1 });
+      await updateDoc(mealRef, { stableId: mealRef.id });
       setStatus(editorStatus, `${name} added.`);
     }
 
