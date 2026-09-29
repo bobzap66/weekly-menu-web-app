@@ -3,83 +3,136 @@ import assert from "node:assert/strict";
 
 import {
   DAYS,
-  MAX_REJECTIONS,
+  DAY_TYPES,
   assignMealDay,
-  clearRejections,
+  canAssignMealDay,
+  countMealDays,
+  countQuickMealDays,
   createMenuState,
+  createPlanningState,
+  createWeekPlan,
   getCarryoverMeals,
   getEatenMeals,
-  getScheduledMeals,
+  getQuickMealShortfall,
+  getRequiredRejectionCount,
+  getScheduledWeek,
   getSelectedMeals,
   isValidMenuState,
   reopenChoices,
+  setDayType,
   toggleCarryover,
   toggleRejection,
 } from "../src/state.js";
 
-const suggestions = Array.from({ length: 10 }, (_, index) => ({
-  categoryId: `category-${index}`,
-  categoryName: `Category ${index}`,
-  mealName: `Meal ${index}`,
-  mealKey: `category-${index}:Meal ${index}`,
-}));
+function makeSuggestions(count = 10) {
+  return Array.from({ length: count }, (_, index) => ({
+    categoryId: `category-${index}`,
+    categoryName: `Category ${index}`,
+    mealName: `Meal ${index}`,
+    mealKey: `category-${index}:Meal ${index}`,
+    quick: index < 4,
+  }));
+}
 
-function finalizedState() {
-  let state = createMenuState(suggestions, "2026-09-29T00:00:00.000Z");
-  for (let index = 0; index < MAX_REJECTIONS; index += 1) {
-    state = toggleRejection(state, state.candidates[index].id);
+function fiveDinnerPlan() {
+  let state = createPlanningState();
+  state = setDayType(state, "Saturday", DAY_TYPES.LEFTOVERS);
+  state = setDayType(state, "Sunday", DAY_TYPES.EATING_OUT);
+  return state.weekPlan;
+}
+
+function finalize(state) {
+  while (state.mode === "choosing" && state.rejectedIds.length < getRequiredRejectionCount(state)) {
+    const next = state.candidates.find((candidate) => !state.rejectedIds.includes(candidate.id));
+    state = toggleRejection(state, next.id);
   }
   return state;
 }
 
-test("creates a persistent menu state from generated suggestions", () => {
-  const state = createMenuState(suggestions, "2026-09-29T00:00:00.000Z");
+test("planning state supports variable day types", () => {
+  let state = createPlanningState();
+  state = setDayType(state, "Tuesday", DAY_TYPES.QUICK);
+  state = setDayType(state, "Friday", DAY_TYPES.LEFTOVERS);
+  state = setDayType(state, "Saturday", DAY_TYPES.EATING_OUT);
+  state = setDayType(state, "Sunday", DAY_TYPES.NO_MEAL);
 
-  assert.equal(state.version, 3);
-  assert.equal(state.candidates.length, 10);
-  assert.equal(state.rejectedIds.length, 0);
-  assert.equal(state.finalized, false);
-  assert.equal(state.createdAt, "2026-09-29T00:00:00.000Z");
-  assert.equal(new Set(state.candidates.map((candidate) => candidate.id)).size, 10);
+  assert.equal(state.mode, "setup");
+  assert.equal(countMealDays(state.weekPlan), 4);
+  assert.equal(countQuickMealDays(state.weekPlan), 1);
+  assert.equal(isValidMenuState(state), true);
 });
 
-test("finalizes automatically after three rejected meals and assigns seven days", () => {
-  const state = finalizedState();
+test("a five-dinner week finalizes after three cuts", () => {
+  const plan = fiveDinnerPlan();
+  let state = createMenuState(makeSuggestions(8), plan);
 
-  assert.equal(state.rejectedIds.length, 3);
-  assert.equal(state.finalized, true);
-  assert.equal(getSelectedMeals(state).length, 7);
-  assert.deepEqual(getScheduledMeals(state).map((entry) => entry.day), DAYS);
+  assert.equal(getRequiredRejectionCount(state), 3);
+  state = finalize(state);
+
+  assert.equal(state.mode, "scheduled");
+  assert.equal(getSelectedMeals(state).length, 5);
+  assert.equal(getScheduledWeek(state).length, 7);
+  assert.equal(getScheduledWeek(state).find((entry) => entry.day === "Saturday").type, DAY_TYPES.LEFTOVERS);
+  assert.equal(getScheduledWeek(state).find((entry) => entry.day === "Sunday").type, DAY_TYPES.EATING_OUT);
 });
 
-test("does not allow more than three rejected meals", () => {
-  const state = finalizedState();
-  const unchanged = toggleRejection(state, state.candidates[4].id);
-  assert.deepEqual(unchanged, state);
-});
+test("quick days prevent finalization without enough quick dinners", () => {
+  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
+  plan.Monday = DAY_TYPES.QUICK;
+  plan.Tuesday = DAY_TYPES.NORMAL;
 
-test("reopening a finalized menu allows a rejected meal to be restored", () => {
-  let state = finalizedState();
-  state = reopenChoices(state);
-  state = toggleRejection(state, state.candidates[0].id);
+  const suggestions = [
+    { categoryId: "q", categoryName: "Quick", mealName: "Quick Meal", mealKey: "q:Quick Meal", quick: true },
+    ...Array.from({ length: 4 }, (_, index) => ({
+      categoryId: `slow-${index}`,
+      categoryName: "Slow",
+      mealName: `Slow ${index}`,
+      mealKey: `slow-${index}:Slow ${index}`,
+      quick: false,
+    })),
+  ];
 
-  assert.equal(state.finalized, false);
-  assert.equal(state.rejectedIds.length, 2);
-  assert.deepEqual(state.dayAssignments, {});
-});
-
-test("clears all rejected meals", () => {
-  let state = createMenuState(suggestions);
+  let state = createMenuState(suggestions, plan);
   state = toggleRejection(state, state.candidates[0].id);
   state = toggleRejection(state, state.candidates[1].id);
-  state = clearRejections(state);
+  state = toggleRejection(state, state.candidates[2].id);
 
-  assert.equal(state.rejectedIds.length, 0);
-  assert.equal(state.finalized, false);
+  assert.equal(state.mode, "choosing");
+  assert.equal(getQuickMealShortfall(state), 1);
+
+  state = toggleRejection(state, state.candidates[0].id);
+  state = toggleRejection(state, state.candidates[3].id);
+
+  assert.equal(state.mode, "scheduled");
+  assert.equal(getQuickMealShortfall(state), 0);
+});
+
+test("quick-day assignments cannot be broken by a manual swap", () => {
+  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
+  plan.Monday = DAY_TYPES.QUICK;
+  plan.Tuesday = DAY_TYPES.NORMAL;
+
+  const suggestions = [
+    { categoryId: "q", categoryName: "Quick", mealName: "Quick Meal", mealKey: "q:Quick Meal", quick: true },
+    { categoryId: "s", categoryName: "Slow", mealName: "Slow Meal", mealKey: "s:Slow Meal", quick: false },
+    { categoryId: "x1", categoryName: "Extra", mealName: "Extra 1", mealKey: "x1:Extra 1", quick: false },
+    { categoryId: "x2", categoryName: "Extra", mealName: "Extra 2", mealKey: "x2:Extra 2", quick: false },
+    { categoryId: "x3", categoryName: "Extra", mealName: "Extra 3", mealKey: "x3:Extra 3", quick: false },
+  ];
+
+  let state = createMenuState(suggestions, plan);
+  state = toggleRejection(state, state.candidates[2].id);
+  state = toggleRejection(state, state.candidates[3].id);
+  state = toggleRejection(state, state.candidates[4].id);
+
+  const quickMeal = getScheduledWeek(state).find((entry) => entry.day === "Monday").meal;
+  assert.equal(canAssignMealDay(state, quickMeal.id, "Tuesday"), false);
+  assert.deepEqual(assignMealDay(state, quickMeal.id, "Tuesday"), state);
 });
 
 test("marks uneaten meals as carryovers and keeps them out of eaten history", () => {
-  let state = finalizedState();
+  let state = createMenuState(makeSuggestions(10), createWeekPlan());
+  state = finalize(state);
   const selected = getSelectedMeals(state);
 
   state = toggleCarryover(state, selected[0].id);
@@ -89,31 +142,37 @@ test("marks uneaten meals as carryovers and keeps them out of eaten history", ()
   assert.equal(getEatenMeals(state).length, 5);
 });
 
-test("assigning a meal to an occupied day swaps the two meals", () => {
-  let state = finalizedState();
-  const schedule = getScheduledMeals(state);
-  const mondayMeal = schedule[0].meal;
-  const tuesdayMeal = schedule[1].meal;
+test("reopening a scheduled menu returns to choosing", () => {
+  let state = createMenuState(makeSuggestions(10), createWeekPlan());
+  state = finalize(state);
+  state = reopenChoices(state);
 
-  state = assignMealDay(state, mondayMeal.id, "Tuesday");
-
-  assert.equal(state.dayAssignments[mondayMeal.id], "Tuesday");
-  assert.equal(state.dayAssignments[tuesdayMeal.id], "Monday");
-  assert.equal(new Set(Object.values(state.dayAssignments)).size, 7);
+  assert.equal(state.mode, "choosing");
+  assert.deepEqual(state.dayAssignments, {});
 });
 
-test("validates persisted menu state", () => {
-  const state = finalizedState();
+test("zero-cook weeks preserve pending carryovers", () => {
+  const carryover = {
+    categoryId: "mexican",
+    categoryName: "Mexican",
+    mealName: "Tacos",
+    mealKey: "mexican:Tacos",
+    quick: true,
+  };
+  const plan = createWeekPlan(DAY_TYPES.NO_MEAL);
+  const state = createMenuState([], plan, "2026-09-29T00:00:00Z", [carryover]);
+
+  assert.equal(state.mode, "scheduled");
+  assert.equal(getCarryoverMeals(state).length, 1);
+  assert.equal(getScheduledWeek(state).every((entry) => entry.meal === null), true);
   assert.equal(isValidMenuState(state), true);
+});
+
+test("validates a scheduled seven-day plan", () => {
+  let state = createMenuState(makeSuggestions(10), createWeekPlan());
+  state = finalize(state);
+
+  assert.equal(isValidMenuState(state), true);
+  assert.deepEqual(getScheduledWeek(state).map((entry) => entry.day), DAYS);
   assert.equal(isValidMenuState({ ...state, carryoverIds: ["missing"] }), false);
-  assert.equal(
-    isValidMenuState({
-      ...state,
-      dayAssignments: {
-        ...state.dayAssignments,
-        [getSelectedMeals(state)[0].id]: "Notaday",
-      },
-    }),
-    false,
-  );
 });
