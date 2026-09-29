@@ -1,18 +1,14 @@
-export const HISTORY_VERSION = 1;
+export const HISTORY_VERSION = 2;
 export const MAX_HISTORY_WEEKS = 8;
 
 const RECENCY_MULTIPLIERS = [0.15, 0.35, 0.55, 0.7, 0.82, 0.92];
 
-export function mealHistoryKey(categoryId, mealName) {
-  return `${categoryId}:${mealName}`;
-}
-
-export function getMealHistoryKey(meal) {
-  if (typeof meal.mealKey === "string" && meal.mealKey.length > 0) {
-    return meal.mealKey;
+export function getStableMealId(meal) {
+  if (typeof meal?.stableId !== "string" || meal.stableId.length === 0) {
+    throw new Error("Meal is missing a stableId.");
   }
 
-  return mealHistoryKey(meal.categoryId, meal.mealName);
+  return meal.stableId;
 }
 
 export function createHistory() {
@@ -32,32 +28,32 @@ export function isValidHistory(value) {
       week &&
       typeof week.weekId === "string" &&
       typeof week.createdAt === "string" &&
-      Array.isArray(week.mealKeys) &&
-      week.mealKeys.every((key) => typeof key === "string"),
+      Array.isArray(week.mealIds) &&
+      week.mealIds.every((id) => typeof id === "string" && id.length > 0),
   );
 }
 
 export function addWeekToHistory(history, meals, weekId, createdAt = new Date().toISOString()) {
   const base = isValidHistory(history) ? history : createHistory();
-  const mealKeys = [...new Set(meals.map(getMealHistoryKey))];
+  const mealIds = [...new Set(meals.map(getStableMealId))];
   const previousWeeks = base.weeks.filter((week) => week.weekId !== weekId);
 
   return {
     version: HISTORY_VERSION,
-    weeks: [{ weekId, createdAt, mealKeys }, ...previousWeeks].slice(0, MAX_HISTORY_WEEKS),
+    weeks: [{ weekId, createdAt, mealIds }, ...previousWeeks].slice(0, MAX_HISTORY_WEEKS),
   };
 }
 
-export function getMealRecency(mealKey, history) {
+export function getMealRecency(stableId, history) {
   if (!isValidHistory(history)) {
     return -1;
   }
 
-  return history.weeks.findIndex((week) => week.mealKeys.includes(mealKey));
+  return history.weeks.findIndex((week) => week.mealIds.includes(stableId));
 }
 
-export function getHistoryWeightMultiplier(mealKey, history) {
-  const weeksAgo = getMealRecency(mealKey, history);
+export function getHistoryWeightMultiplier(stableId, history) {
+  const weeksAgo = getMealRecency(stableId, history);
 
   if (weeksAgo < 0 || weeksAgo >= RECENCY_MULTIPLIERS.length) {
     return 1;
