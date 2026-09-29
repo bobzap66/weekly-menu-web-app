@@ -21,7 +21,8 @@ body {
     #f4efe3;
 }
 
-button {
+button,
+select {
   font: inherit;
 }
 
@@ -144,7 +145,9 @@ h2 {
 }
 
 .action-button:focus-visible,
-.meal-choice:focus-visible {
+.meal-choice:focus-visible,
+.day-select:focus-visible,
+.carryover-toggle:focus-visible {
   outline: 3px solid #e7a35f;
   outline-offset: 3px;
 }
@@ -256,17 +259,81 @@ h2 {
   text-decoration-thickness: 2px;
 }
 
-.removed-label {
+.removed-label,
+.carried-over-label {
   display: inline-block;
   margin-top: 0.7rem;
   border-radius: 999px;
   padding: 0.22rem 0.5rem;
-  color: #6f4935;
-  background: #efe0d2;
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.removed-label {
+  color: #6f4935;
+  background: #efe0d2;
+}
+
+.carried-over-label {
+  color: #476241;
+  background: #e2ecdd;
+}
+
+.is-carried-over:not(.is-rejected) {
+  background: rgb(226 236 221 / 34%);
+}
+
+.scheduled-content {
+  display: flex;
+  min-height: 9.75rem;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scheduled-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.day-select {
+  width: auto;
+  max-width: 100%;
+  border: 1px solid rgb(74 63 45 / 20%);
+  border-radius: 0.65rem;
+  padding: 0.45rem 2rem 0.45rem 0.65rem;
+  color: #4e463b;
+  background: #fffdf8;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.meal-name-group {
+  flex: 1;
+}
+
+.carryover-toggle {
+  align-self: flex-start;
+  border: 1px solid rgb(74 63 45 / 18%);
+  border-radius: 999px;
+  padding: 0.45rem 0.7rem;
+  color: #655e52;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.carryover-toggle:hover {
+  background: #f7f0e5;
+}
+
+.carryover-toggle.is-marked {
+  border-color: #9ab291;
+  color: #365330;
+  background: #e2ecdd;
 }
 
 @media (max-width: 640px) {
