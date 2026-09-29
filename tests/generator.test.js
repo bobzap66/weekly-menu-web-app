@@ -32,6 +32,16 @@ test("every menu result declares whether it is a quick meal", () => {
   }
 });
 
+test("can require a minimum number of quick candidates", () => {
+  const results = generateMenu(menuData, () => 0.42, null, {
+    candidateCount: 6,
+    minimumQuickCount: 3,
+  });
+
+  assert.equal(results.length, 6);
+  assert.equal(results.filter((result) => result.quick).length >= 3, true);
+});
+
 test("weighted selection respects item boundaries", () => {
   const items = [
     { name: "one", weight: 1 },
@@ -62,7 +72,9 @@ test("applies a guaranteed modifier", () => {
     ],
   };
 
-  assert.equal(generateMenu(fixture, () => 0)[0].mealName, "Dinner with a modifier");
+  const result = generateMenu(fixture, () => 0)[0];
+  assert.equal(result.mealName, "Dinner with a modifier");
+  assert.equal(result.quick, true);
 });
 
 test("recent meal history makes a repeated meal less likely", () => {
