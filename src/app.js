@@ -1,21 +1,26 @@
 import { menuData } from "./data.js";
-import { generateMenu } from "./generator.js";
 import {
   addWeekToHistory,
   createHistory,
   isValidHistory,
 } from "./history.js";
 import {
+  DAYS,
   MAX_REJECTIONS,
+  assignMealDay,
   clearRejections,
   createMenuState,
-  getSelectedMeals,
+  getCarryoverMeals,
+  getEatenMeals,
+  getScheduledMeals,
   isValidMenuState,
   reopenChoices,
+  toggleCarryover,
   toggleRejection,
 } from "./state.js";
+import { buildNextWeekSuggestions } from "./week.js";
 
-const STORAGE_KEY = "weekly-menu:v1";
+const STORAGE_KEY = "weekly-menu:v3";
 const HISTORY_STORAGE_KEY = "weekly-menu:history:v1";
 
 const menuList = document.querySelector("#menu-list");
@@ -25,8 +30,8 @@ const selectionStatus = document.querySelector("#selection-status");
 const primaryButton = document.querySelector("#primary-button");
 const secondaryButton = document.querySelector("#secondary-button");
 
-function createFreshState() {
-  return createMenuState(generateMenu(menuData, Math.random, history));
+function createFreshState(carryoverMeals = []) {
+  return createMenuState(buildNextWeekSuggestions(menuData, history, carryoverMeals));
 }
 
 function loadState() {
@@ -71,13 +76,23 @@ function saveHistory() {
   }
 }
 
+function currentCarryoverCandidates() {
+  const rejected = new Set(state.rejectedIds);
+  return state.candidates.filter((candidate) => candidate.carriedOver && !rejected.has(candidate.id));
+}
+
 function startFreshWeek() {
+  let carryovers = [];
+
   if (state.finalized) {
-    history = addWeekToHistory(history, getSelectedMeals(state), state.createdAt);
+    carryovers = getCarryoverMeals(state);
+    history = addWeekToHistory(history, getEatenMeals(state), state.createdAt);
     saveHistory();
+  } else {
+    carryovers = currentCarryoverCandidates();
   }
 
-  state = createFreshState();
+  state = createFreshState(carryovers);
   saveState();
   render();
 }
@@ -94,6 +109,13 @@ function createMealContent(meal) {
   return { mealName, categoryName };
 }
 
+function createCarriedOverLabel() {
+  const label = document.createElement("span");
+  label.className = "carried-over-label";
+  label.textContent = "Carried over";
+  return label;
+}
+
 function renderCandidates() {
   const rejected = new Set(state.rejectedIds);
   const fragment = document.createDocumentFragment();
@@ -103,10 +125,15 @@ function renderCandidates() {
 
   const rejectedCount = state.rejectedIds.length;
   const remaining = MAX_REJECTIONS - rejectedCount;
-  selectionStatus.textContent =
-    rejectedCount === 0
-      ? "Tap three meals you do not want this week. Recent dinners are less likely to repeat."
-      : `${rejectedCount} of ${MAX_REJECTIONS} removed — choose ${remaining} more.`;
+  const carryoverCount = currentCarryoverCandidates().length;
+
+  if (rejectedCount === 0) {
+    selectionStatus.textContent = carryoverCount > 0
+      ? `${carryoverCount} ${carryoverCount === 1 ? "dinner was" : "dinners were"} carried over from last week. Tap three meals you do not want this week.`
+      : "Tap three meals you do not want this week. Recent dinners are less likely to repeat.";
+  } else {
+    selectionStatus.textContent = `${rejectedCount} of ${MAX_REJECTIONS} removed — choose ${remaining} more.`;
+  }
 
   for (const candidate of state.candidates) {
     const item = document.createElement("li");
@@ -114,7 +141,7 @@ function renderCandidates() {
     const content = createMealContent(candidate);
     const isRejected = rejected.has(candidate.id);
 
-    item.className = `menu-item${isRejected ? " is-rejected" : ""}`;
+    item.className = `menu-item${isRejected ? " is-rejected" : ""}${candidate.carriedOver ? " is-carried-over" : ""}`;
     choice.className = "meal-choice";
     choice.type = "button";
     choice.setAttribute("aria-pressed", String(isRejected));
@@ -124,6 +151,10 @@ function renderCandidates() {
     );
 
     choice.append(content.mealName, content.categoryName);
+
+    if (candidate.carriedOver && !isRejected) {
+      choice.append(createCarriedOverLabel());
+    }
 
     if (isRejected) {
       const removedLabel = document.createElement("span");
@@ -143,27 +174,76 @@ function renderCandidates() {
   }
 
   menuList.replaceChildren(fragment);
-  primaryButton.textContent = "Roll 10 new ideas";
+  primaryButton.textContent = carryoverCount > 0 ? "Reroll other ideas" : "Roll 10 new ideas";
   secondaryButton.textContent = "Clear removals";
   secondaryButton.hidden = rejectedCount === 0;
 }
 
+function createDaySelect(meal, currentDay) {
+  const select = document.createElement("select");
+  select.className = "day-select";
+  select.setAttribute("aria-label", `Day for ${meal.mealName}`);
+
+  for (const day of DAYS) {
+    const option = document.createElement("option");
+    option.value = day;
+    option.textContent = day;
+    option.selected = day === currentDay;
+    select.append(option);
+  }
+
+  select.addEventListener("change", () => {
+    state = assignMealDay(state, meal.id, select.value);
+    saveState();
+    render();
+  });
+
+  return select;
+}
+
+function createCarryoverToggle(meal) {
+  const marked = state.carryoverIds.includes(meal.id);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `carryover-toggle${marked ? " is-marked" : ""}`;
+  button.setAttribute("aria-pressed", String(marked));
+  button.textContent = marked ? "Carrying to next week" : "Didn’t eat — carry over";
+
+  button.addEventListener("click", () => {
+    state = toggleCarryover(state, meal.id);
+    saveState();
+    render();
+  });
+
+  return button;
+}
+
 function renderFinalMenu() {
   const fragment = document.createDocumentFragment();
+  const carryoverCount = state.carryoverIds.length;
 
   stepLabel.textContent = "This week’s menu";
-  menuHeading.textContent = "Seven dinners, decided";
-  selectionStatus.textContent =
-    "Saved on this device. Starting next week will remember these dinners and make recent repeats less likely.";
+  menuHeading.textContent = "Seven dinners, scheduled";
+  selectionStatus.textContent = carryoverCount > 0
+    ? `${carryoverCount} ${carryoverCount === 1 ? "dinner is" : "dinners are"} marked to carry into next week. Change days anytime.`
+    : "Assign each dinner to a day. If you do not get to one, mark it to carry into next week.";
 
-  for (const meal of getSelectedMeals(state)) {
+  for (const { day, meal } of getScheduledMeals(state)) {
     const item = document.createElement("li");
     const content = document.createElement("div");
+    const topRow = document.createElement("div");
     const mealContent = createMealContent(meal);
 
     item.className = "menu-item final-item";
-    content.className = "meal-content";
-    content.append(mealContent.mealName, mealContent.categoryName);
+    content.className = "meal-content scheduled-content";
+    topRow.className = "scheduled-top-row";
+    topRow.append(createDaySelect(meal, day));
+
+    const nameGroup = document.createElement("div");
+    nameGroup.className = "meal-name-group";
+    nameGroup.append(mealContent.mealName, mealContent.categoryName);
+
+    content.append(topRow, nameGroup, createCarryoverToggle(meal));
     item.append(content);
     fragment.append(item);
   }
