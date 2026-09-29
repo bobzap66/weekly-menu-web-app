@@ -10,12 +10,15 @@ import {
   assignMealDay,
   canAssignMealDay,
   clearRejections,
+  countBigMealDays,
   countMealDays,
   countQuickMealDays,
   createMenuState,
   createPlanningState,
+  getBigMealShortfall,
   getCarryoverMeals,
   getEatenMeals,
+  getMealRequirementShortfall,
   getQuickMealShortfall,
   getRequiredRejectionCount,
   getScheduledWeek,
@@ -28,7 +31,7 @@ import {
 } from "./state.js";
 import { buildNextWeekSuggestions } from "./week.js";
 
-const STORAGE_KEY = "weekly-menu:v4";
+const STORAGE_KEY = "weekly-menu:v5";
 const HISTORY_STORAGE_KEY = "weekly-menu:history:v1";
 
 const menuList = document.querySelector("#menu-list");
@@ -131,10 +134,10 @@ function startNextWeek() {
   render();
 }
 
-function createQuickLabel() {
+function createTagLabel(text, className) {
   const label = document.createElement("span");
-  label.className = "quick-label";
-  label.textContent = "Quick";
+  label.className = className;
+  label.textContent = text;
   return label;
 }
 
@@ -153,7 +156,10 @@ function createMealContent(meal) {
 
   categoryRow.append(categoryName);
   if (meal.quick) {
-    categoryRow.append(createQuickLabel());
+    categoryRow.append(createTagLabel("Quick", "quick-label"));
+  }
+  if (meal.bigMeal) {
+    categoryRow.append(createTagLabel("Big Meal", "big-meal-label"));
   }
 
   wrapper.append(mealName, categoryRow);
@@ -161,10 +167,7 @@ function createMealContent(meal) {
 }
 
 function createCarriedOverLabel() {
-  const label = document.createElement("span");
-  label.className = "carried-over-label";
-  label.textContent = "Carried over";
-  return label;
+  return createTagLabel("Carried over", "carried-over-label");
 }
 
 function createDayTypeSelect(day) {
@@ -193,14 +196,23 @@ function renderSetup() {
   const fragment = document.createDocumentFragment();
   const mealCount = countMealDays(state.weekPlan);
   const quickCount = countQuickMealDays(state.weekPlan);
+  const bigCount = countBigMealDays(state.weekPlan);
   const carryoverCount = state.pendingCarryovers.length;
 
   stepLabel.textContent = "Plan the week";
   menuHeading.textContent = "What does each day need?";
 
+  const requirements = [];
+  if (quickCount > 0) {
+    requirements.push(`${quickCount} quick`);
+  }
+  if (bigCount > 0) {
+    requirements.push(`${bigCount} for guests`);
+  }
+
   const mealSummary = mealCount === 0
     ? "No cooked dinners are planned yet."
-    : `${mealCount} ${plural(mealCount, "dinner")} planned${quickCount > 0 ? `, including ${quickCount} quick` : ""}.`;
+    : `${mealCount} ${plural(mealCount, "dinner")} planned${requirements.length > 0 ? `, including ${requirements.join(" and ")}` : ""}.`;
   const carryoverSummary = carryoverCount > 0
     ? ` ${carryoverCount} ${plural(carryoverCount, "carryover")} will be included automatically.`
     : "";
@@ -224,33 +236,61 @@ function renderSetup() {
   secondaryButton.hidden = true;
 }
 
+function requirementProblemText() {
+  const quickShortfall = getQuickMealShortfall(state);
+  const bigShortfall = getBigMealShortfall(state);
+  const totalShortfall = getMealRequirementShortfall(state);
+
+  if (quickShortfall > 0 && bigShortfall > 0) {
+    return `Your plan still needs ${quickShortfall} quick ${plural(quickShortfall, "dinner")} and ${bigShortfall} guest-friendly ${plural(bigShortfall, "dinner")}. Restore qualifying meals, then remove other options.`;
+  }
+
+  if (quickShortfall > 0) {
+    return `Your Quick Meal days still need ${quickShortfall} more quick ${plural(quickShortfall, "dinner")}. Restore a quick meal, then remove another option.`;
+  }
+
+  if (bigShortfall > 0) {
+    return `Your Big Meal / Guests days still need ${bigShortfall} more guest-friendly ${plural(bigShortfall, "dinner")}. Restore a Big Meal, then remove another option.`;
+  }
+
+  return `Your Quick and Big Meal requirements need ${totalShortfall} more qualifying ${plural(totalShortfall, "dinner")} so separate days can be assigned. Restore a tagged meal, then remove another option.`;
+}
+
 function renderCandidates() {
   const rejected = new Set(state.rejectedIds);
   const fragment = document.createDocumentFragment();
   const mealCount = countMealDays(state.weekPlan);
   const quickCount = countQuickMealDays(state.weekPlan);
+  const bigCount = countBigMealDays(state.weekPlan);
   const requiredRejections = getRequiredRejectionCount(state);
   const rejectedCount = state.rejectedIds.length;
   const remaining = requiredRejections - rejectedCount;
-  const quickShortfall = getQuickMealShortfall(state);
+  const requirementShortfall = getMealRequirementShortfall(state);
   const carryoverCount = currentCarryoverCandidates().length;
 
   stepLabel.textContent = "This week’s candidates";
   menuHeading.textContent = `Choose ${mealCount} ${plural(mealCount, "dinner")}`;
   menuList.className = "menu-list";
 
-  if (rejectedCount === requiredRejections && quickShortfall > 0) {
-    selectionStatus.textContent = `Your Quick Meal days still need ${quickShortfall} more quick ${plural(quickShortfall, "dinner")}. Restore a quick meal, then remove a non-quick option.`;
+  if (rejectedCount === requiredRejections && requirementShortfall > 0) {
+    selectionStatus.textContent = requirementProblemText();
   } else {
-    const quickSummary = quickCount > 0
-      ? ` The final menu needs at least ${quickCount} quick ${plural(quickCount, "dinner")}.`
+    const requirements = [];
+    if (quickCount > 0) {
+      requirements.push(`${quickCount} quick`);
+    }
+    if (bigCount > 0) {
+      requirements.push(`${bigCount} for guests`);
+    }
+    const requirementSummary = requirements.length > 0
+      ? ` The final menu needs ${requirements.join(" and ")}.`
       : "";
     const carryoverSummary = carryoverCount > 0
       ? ` ${carryoverCount} ${plural(carryoverCount, "dinner")} carried over automatically.`
       : "";
     selectionStatus.textContent = remaining > 0
-      ? `Remove ${remaining} more ${plural(remaining, "meal")}.${quickSummary}${carryoverSummary}`
-      : `Your selections are ready.${quickSummary}${carryoverSummary}`;
+      ? `Remove ${remaining} more ${plural(remaining, "meal")}.${requirementSummary}${carryoverSummary}`
+      : `Your selections are ready.${requirementSummary}${carryoverSummary}`;
   }
 
   for (const candidate of state.candidates) {
@@ -347,9 +387,9 @@ function renderScheduledWeek() {
     ? `${mealCount} ${plural(mealCount, "dinner")}, scheduled`
     : "Week planned";
   selectionStatus.textContent = carryoverCount > 0
-    ? `${carryoverCount} ${plural(carryoverCount, "dinner")} marked to carry forward. Quick Meal days are locked to quick-tagged dinners.`
+    ? `${carryoverCount} ${plural(carryoverCount, "dinner")} marked to carry forward. Quick and Guests days remain locked to qualifying dinners.`
     : mealCount > 0
-      ? "Quick Meal days are matched to quick-tagged dinners. Move meals between compatible days anytime."
+      ? "Quick Meal and Big Meal / Guests days are matched to qualifying dinners. Move meals between compatible days anytime."
       : "No cooked dinners are scheduled this week.";
 
   menuList.className = "week-schedule-list";
