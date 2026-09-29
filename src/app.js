@@ -27,6 +27,7 @@ import {
   isMealDayType,
   isValidMenuState,
   reopenChoices,
+  reopenWeekSetup,
   setDayRequirement,
   setDayType,
   toggleCarryover,
@@ -43,6 +44,7 @@ const menuHeading = document.querySelector("#menu-heading");
 const selectionStatus = document.querySelector("#selection-status");
 const primaryButton = document.querySelector("#primary-button");
 const secondaryButton = document.querySelector("#secondary-button");
+const tertiaryButton = document.querySelector("#tertiary-button");
 
 function plural(count, singular, pluralForm = `${singular}s`) {
   return count === 1 ? singular : pluralForm;
@@ -274,6 +276,7 @@ function renderSetup() {
   menuList.replaceChildren(fragment);
   primaryButton.textContent = mealCount === 0 ? "Use this week structure" : "Generate dinner ideas";
   secondaryButton.hidden = true;
+  tertiaryButton.hidden = true;
 }
 
 function requirementProblemText() {
@@ -374,6 +377,8 @@ function renderCandidates() {
   primaryButton.textContent = carryoverCount > 0 ? "Reroll other ideas" : "Roll new ideas";
   secondaryButton.textContent = "Clear removals";
   secondaryButton.hidden = rejectedCount === 0;
+  tertiaryButton.textContent = "Edit week setup";
+  tertiaryButton.hidden = false;
 }
 
 function createDaySelect(meal, currentDay) {
@@ -481,6 +486,8 @@ function renderScheduledWeek() {
   primaryButton.textContent = "Start next week";
   secondaryButton.textContent = "Change choices";
   secondaryButton.hidden = mealCount === 0;
+  tertiaryButton.textContent = "Edit week setup";
+  tertiaryButton.hidden = false;
 }
 
 function render() {
@@ -499,6 +506,12 @@ secondaryButton.addEventListener("click", () => {
   if (state.mode === "choosing") state = clearRejections(state);
   else if (state.mode === "scheduled") state = reopenChoices(state);
 
+  saveState();
+  render();
+});
+
+tertiaryButton.addEventListener("click", () => {
+  state = reopenWeekSetup(state);
   saveState();
   render();
 });
