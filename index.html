@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Generate ten weighted dinner ideas for a simple weekly menu."
+    />
+    <title>Weekly Menu</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <p class="eyebrow">Dinner, decided</p>
+
+        <h1>Weekly Menu</h1>
+
+        <p class="intro">
+          Roll ten dinner ideas, then cross off the three you are not feeling this week.
+        </p>
+      </header>
+
+      <section class="menu-card" aria-labelledby="menu-heading">
+        <div class="menu-heading-row">
+          <div>
+            <p class="step-label">This week’s candidates</p>
+
+            <h2 id="menu-heading">Ten dinner suggestions</h2>
+          </div>
+
+          <button id="generate-button" type="button">Roll a new menu</button>
+        </div>
+
+        <ol id="menu-list" class="menu-list" aria-live="polite"></ol>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
