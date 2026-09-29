@@ -6,7 +6,7 @@
     <meta name="description" content="Sign in to manage the Weekly Menu meal catalog." />
     <title>Manage Meals — Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./manage.css?v=0.9.0" />
+    <link rel="stylesheet" href="./manage.css?v=0.9.1" />
   </head>
   <body>
     <main class="app-shell admin-shell">
@@ -52,6 +52,25 @@
             </div>
           </div>
           <p class="admin-help">Use this UID in the Firestore security rules allowlist. The editor intentionally has no public sign-up screen.</p>
+        </section>
+
+        <section class="menu-card admin-card" aria-labelledby="list-migration-heading">
+          <div class="admin-section-heading">
+            <div>
+              <p class="step-label">List migration</p>
+              <h2 id="list-migration-heading">Create the first meal list</h2>
+            </div>
+          </div>
+          <div class="admin-section-body migration-body">
+            <p>This staged migration creates a private list record named <strong>Family Dinners</strong> and copies the existing category and meal documents into its subcollections while preserving every current document ID. The legacy collections remain untouched until the copied list is verified and the app is switched over.</p>
+            <p>If the preview reports a permission error, publish the updated <code>firestore.rules</code> first and then retry.</p>
+            <div class="migration-actions">
+              <button id="list-migration-preview-button" class="action-button secondary-button" type="button">Preview list migration</button>
+              <button id="list-migration-apply-button" class="action-button primary-button" type="button" hidden>Copy catalog into list</button>
+            </div>
+            <ul id="list-migration-report" class="migration-report" aria-live="polite"></ul>
+          </div>
+          <p id="list-migration-status" class="admin-status" aria-live="polite"></p>
         </section>
 
         <section class="menu-card admin-card" aria-labelledby="category-heading">
@@ -161,6 +180,7 @@
       </section>
     </main>
 
-    <script type="module" src="./src/manage.js?v=0.9.0"></script>
+    <script type="module" src="./src/manage.js?v=0.9.1"></script>
+    <script type="module" src="./src/list-migrate.js?v=0.9.1"></script>
   </body>
 </html>
