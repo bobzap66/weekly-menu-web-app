@@ -28,4 +28,3 @@ function renderMenu() {
 
 generateButton.addEventListener("click", renderMenu);
 renderMenu();
-
