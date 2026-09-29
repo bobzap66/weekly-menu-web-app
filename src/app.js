@@ -11,12 +11,14 @@ import {
   canAssignMealDay,
   clearRejections,
   countBigMealDays,
+  countCombinedMealDays,
   countMealDays,
   countQuickMealDays,
   createMenuState,
   createPlanningState,
   getBigMealShortfall,
   getCarryoverMeals,
+  getCombinedMealShortfall,
   getEatenMeals,
   getMealRequirementShortfall,
   getQuickMealShortfall,
@@ -25,13 +27,14 @@ import {
   isMealDayType,
   isValidMenuState,
   reopenChoices,
+  setDayRequirement,
   setDayType,
   toggleCarryover,
   toggleRejection,
 } from "./state.js";
 import { buildNextWeekSuggestions } from "./week.js";
 
-const STORAGE_KEY = "weekly-menu:v5";
+const STORAGE_KEY = "weekly-menu:v6";
 const HISTORY_STORAGE_KEY = "weekly-menu:history:v1";
 
 const menuList = document.querySelector("#menu-list");
@@ -48,9 +51,7 @@ function plural(count, singular, pluralForm = `${singular}s`) {
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (isValidMenuState(saved)) {
-      return saved;
-    }
+    if (isValidMenuState(saved)) return saved;
   } catch {
     // Ignore unavailable storage or malformed saved data and start a fresh planner.
   }
@@ -61,9 +62,7 @@ function loadState() {
 function loadHistory() {
   try {
     const saved = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY));
-    if (isValidHistory(saved)) {
-      return saved;
-    }
+    if (isValidHistory(saved)) return saved;
   } catch {
     // Ignore unavailable storage or malformed history and start clean.
   }
@@ -155,14 +154,19 @@ function createMealContent(meal) {
   categoryName.textContent = meal.categoryName;
 
   categoryRow.append(categoryName);
-  if (meal.quick) {
-    categoryRow.append(createTagLabel("Quick", "quick-label"));
-  }
-  if (meal.bigMeal) {
-    categoryRow.append(createTagLabel("Big Meal", "big-meal-label"));
-  }
+  if (meal.quick) categoryRow.append(createTagLabel("Quick", "quick-label"));
+  if (meal.bigMeal) categoryRow.append(createTagLabel("Big Meal", "big-meal-label"));
 
   wrapper.append(mealName, categoryRow);
+
+  const description = typeof meal.description === "string" ? meal.description.trim() : "";
+  if (description) {
+    const descriptionElement = document.createElement("p");
+    descriptionElement.className = "meal-description";
+    descriptionElement.textContent = description;
+    wrapper.append(descriptionElement);
+  }
+
   return wrapper;
 }
 
@@ -179,7 +183,7 @@ function createDayTypeSelect(day) {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = label;
-    option.selected = state.weekPlan[day] === value;
+    option.selected = state.weekPlan[day].type === value;
     select.append(option);
   }
 
@@ -192,27 +196,63 @@ function createDayTypeSelect(day) {
   return select;
 }
 
+function createRequirementCheckbox(day, requirement, labelText) {
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+  const text = document.createElement("span");
+
+  label.className = `requirement-check requirement-${requirement}`;
+  input.type = "checkbox";
+  input.checked = state.weekPlan[day][requirement] === true;
+  input.setAttribute("aria-label", `${labelText} for ${day}`);
+  text.textContent = labelText;
+
+  input.addEventListener("change", () => {
+    state = setDayRequirement(state, day, requirement, input.checked);
+    saveState();
+    render();
+  });
+
+  label.append(input, text);
+  return label;
+}
+
+function createDayPlanControls(day) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "day-plan-controls";
+  wrapper.append(createDayTypeSelect(day));
+
+  if (isMealDayType(state.weekPlan[day].type)) {
+    const requirements = document.createElement("div");
+    requirements.className = "day-requirements";
+    requirements.append(
+      createRequirementCheckbox(day, "quick", "Quick"),
+      createRequirementCheckbox(day, "bigMeal", "Big Meal / Guests"),
+    );
+    wrapper.append(requirements);
+  }
+
+  return wrapper;
+}
+
 function renderSetup() {
   const fragment = document.createDocumentFragment();
   const mealCount = countMealDays(state.weekPlan);
   const quickCount = countQuickMealDays(state.weekPlan);
   const bigCount = countBigMealDays(state.weekPlan);
+  const combinedCount = countCombinedMealDays(state.weekPlan);
   const carryoverCount = state.pendingCarryovers.length;
 
   stepLabel.textContent = "Plan the week";
   menuHeading.textContent = "What does each day need?";
 
   const requirements = [];
-  if (quickCount > 0) {
-    requirements.push(`${quickCount} quick`);
-  }
-  if (bigCount > 0) {
-    requirements.push(`${bigCount} for guests`);
-  }
+  if (quickCount > 0) requirements.push(`${quickCount} quick`);
+  if (bigCount > 0) requirements.push(`${bigCount} for guests`);
 
   const mealSummary = mealCount === 0
     ? "No cooked dinners are planned yet."
-    : `${mealCount} ${plural(mealCount, "dinner")} planned${requirements.length > 0 ? `, including ${requirements.join(" and ")}` : ""}.`;
+    : `${mealCount} ${plural(mealCount, "dinner")} planned${requirements.length > 0 ? `, including ${requirements.join(" and ")}` : ""}${combinedCount > 0 ? ` (${combinedCount} ${plural(combinedCount, "day")} need both)` : ""}.`;
   const carryoverSummary = carryoverCount > 0
     ? ` ${carryoverCount} ${plural(carryoverCount, "carryover")} will be included automatically.`
     : "";
@@ -227,7 +267,7 @@ function renderSetup() {
     item.className = "setup-day-item";
     dayName.className = "setup-day-name";
     dayName.textContent = day;
-    item.append(dayName, createDayTypeSelect(day));
+    item.append(dayName, createDayPlanControls(day));
     fragment.append(item);
   }
 
@@ -237,23 +277,28 @@ function renderSetup() {
 }
 
 function requirementProblemText() {
+  const combinedShortfall = getCombinedMealShortfall(state);
   const quickShortfall = getQuickMealShortfall(state);
   const bigShortfall = getBigMealShortfall(state);
   const totalShortfall = getMealRequirementShortfall(state);
+
+  if (combinedShortfall > 0) {
+    return `A day marked both Quick and Big Meal still needs ${combinedShortfall} more ${plural(combinedShortfall, "dinner")} tagged both Quick and Big Meal. Restore one, then remove another option.`;
+  }
 
   if (quickShortfall > 0 && bigShortfall > 0) {
     return `Your plan still needs ${quickShortfall} quick ${plural(quickShortfall, "dinner")} and ${bigShortfall} guest-friendly ${plural(bigShortfall, "dinner")}. Restore qualifying meals, then remove other options.`;
   }
 
   if (quickShortfall > 0) {
-    return `Your Quick Meal days still need ${quickShortfall} more quick ${plural(quickShortfall, "dinner")}. Restore a quick meal, then remove another option.`;
+    return `Your Quick requirements still need ${quickShortfall} more quick ${plural(quickShortfall, "dinner")}. Restore a quick meal, then remove another option.`;
   }
 
   if (bigShortfall > 0) {
-    return `Your Big Meal / Guests days still need ${bigShortfall} more guest-friendly ${plural(bigShortfall, "dinner")}. Restore a Big Meal, then remove another option.`;
+    return `Your Big Meal / Guests requirements still need ${bigShortfall} more guest-friendly ${plural(bigShortfall, "dinner")}. Restore a Big Meal, then remove another option.`;
   }
 
-  return `Your Quick and Big Meal requirements need ${totalShortfall} more qualifying ${plural(totalShortfall, "dinner")} so separate days can be assigned. Restore a tagged meal, then remove another option.`;
+  return `Your checked meal requirements need ${totalShortfall} more compatible ${plural(totalShortfall, "dinner")}. Restore a tagged meal, then remove another option.`;
 }
 
 function renderCandidates() {
@@ -276,12 +321,8 @@ function renderCandidates() {
     selectionStatus.textContent = requirementProblemText();
   } else {
     const requirements = [];
-    if (quickCount > 0) {
-      requirements.push(`${quickCount} quick`);
-    }
-    if (bigCount > 0) {
-      requirements.push(`${bigCount} for guests`);
-    }
+    if (quickCount > 0) requirements.push(`${quickCount} quick`);
+    if (bigCount > 0) requirements.push(`${bigCount} for guests`);
     const requirementSummary = requirements.length > 0
       ? ` The final menu needs ${requirements.join(" and ")}.`
       : "";
@@ -310,9 +351,7 @@ function renderCandidates() {
 
     choice.append(createMealContent(candidate));
 
-    if (isCarriedOver && !isRejected) {
-      choice.append(createCarriedOverLabel());
-    }
+    if (isCarriedOver && !isRejected) choice.append(createCarriedOverLabel());
 
     if (isRejected) {
       const removedLabel = document.createElement("span");
@@ -342,7 +381,7 @@ function createDaySelect(meal, currentDay) {
   select.className = "day-select";
   select.setAttribute("aria-label", `Day for ${meal.mealName}`);
 
-  for (const day of DAYS.filter((candidateDay) => isMealDayType(state.weekPlan[candidateDay]))) {
+  for (const day of DAYS.filter((candidateDay) => isMealDayType(state.weekPlan[candidateDay].type))) {
     const option = document.createElement("option");
     option.value = day;
     option.textContent = day;
@@ -377,6 +416,16 @@ function createCarryoverToggle(meal) {
   return button;
 }
 
+function appendScheduleBadges(container, type, quickRequired, bigMealRequired) {
+  container.append(createTagLabel(DAY_TYPE_LABELS[type], `day-type-badge day-type-${type}`));
+  if (isMealDayType(type) && quickRequired) {
+    container.append(createTagLabel("Quick", "day-type-badge day-type-quick"));
+  }
+  if (isMealDayType(type) && bigMealRequired) {
+    container.append(createTagLabel("Big Meal / Guests", "day-type-badge day-type-big"));
+  }
+}
+
 function renderScheduledWeek() {
   const fragment = document.createDocumentFragment();
   const mealCount = countMealDays(state.weekPlan);
@@ -387,26 +436,26 @@ function renderScheduledWeek() {
     ? `${mealCount} ${plural(mealCount, "dinner")}, scheduled`
     : "Week planned";
   selectionStatus.textContent = carryoverCount > 0
-    ? `${carryoverCount} ${plural(carryoverCount, "dinner")} marked to carry forward. Quick and Guests days remain locked to qualifying dinners.`
+    ? `${carryoverCount} ${plural(carryoverCount, "dinner")} marked to carry forward. Checked Quick and Guests requirements remain locked to qualifying dinners.`
     : mealCount > 0
-      ? "Quick Meal and Big Meal / Guests days are matched to qualifying dinners. Move meals between compatible days anytime."
+      ? "Quick and Big Meal / Guests requirements are matched to qualifying dinners. Move meals between compatible days anytime."
       : "No cooked dinners are scheduled this week.";
 
   menuList.className = "week-schedule-list";
 
-  for (const { day, type, meal } of getScheduledWeek(state)) {
+  for (const { day, type, quickRequired, bigMealRequired, meal } of getScheduledWeek(state)) {
     const item = document.createElement("li");
     const heading = document.createElement("div");
     const dayName = document.createElement("span");
-    const typeLabel = document.createElement("span");
+    const badges = document.createElement("div");
 
     item.className = `schedule-day-item${meal ? "" : " nonmeal-day"}`;
     heading.className = "schedule-day-heading";
     dayName.className = "schedule-day-name";
     dayName.textContent = day;
-    typeLabel.className = `day-type-badge day-type-${type}`;
-    typeLabel.textContent = DAY_TYPE_LABELS[type];
-    heading.append(dayName, typeLabel);
+    badges.className = "schedule-day-badges";
+    appendScheduleBadges(badges, type, quickRequired, bigMealRequired);
+    heading.append(dayName, badges);
     item.append(heading);
 
     if (meal) {
@@ -435,31 +484,20 @@ function renderScheduledWeek() {
 }
 
 function render() {
-  if (state.mode === "setup") {
-    renderSetup();
-  } else if (state.mode === "choosing") {
-    renderCandidates();
-  } else {
-    renderScheduledWeek();
-  }
+  if (state.mode === "setup") renderSetup();
+  else if (state.mode === "choosing") renderCandidates();
+  else renderScheduledWeek();
 }
 
 primaryButton.addEventListener("click", () => {
-  if (state.mode === "setup") {
-    beginPlannedWeek();
-  } else if (state.mode === "choosing") {
-    rerollIdeas();
-  } else {
-    startNextWeek();
-  }
+  if (state.mode === "setup") beginPlannedWeek();
+  else if (state.mode === "choosing") rerollIdeas();
+  else startNextWeek();
 });
 
 secondaryButton.addEventListener("click", () => {
-  if (state.mode === "choosing") {
-    state = clearRejections(state);
-  } else if (state.mode === "scheduled") {
-    state = reopenChoices(state);
-  }
+  if (state.mode === "choosing") state = clearRejections(state);
+  else if (state.mode === "scheduled") state = reopenChoices(state);
 
   saveState();
   render();
