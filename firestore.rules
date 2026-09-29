@@ -1,13 +1,6 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isEditor() {
-      return request.auth != null
-        && request.auth.uid in [
-          "NioS8nIm2RZQnK8XzEQK06YhXwE2"
-        ];
-    }
-
     function ownsList(listId) {
       return request.auth != null
         && get(/databases/$(database)/documents/lists/$(listId)).data.ownerUid == request.auth.uid;
@@ -18,41 +11,35 @@ service cloud.firestore {
         || get(/databases/$(database)/documents/lists/$(listId)).data.publicRead == true;
     }
 
-    // Legacy top-level catalog. Keep this during the staged list migration.
-    match /categories/{categoryId} {
-      allow read: if true;
-      allow create, update, delete: if isEditor();
-    }
-
-    match /meals/{mealId} {
-      allow read: if true;
-      allow create, update, delete: if isEditor();
-    }
-
-    // During the staged migration, the existing allowlisted editor may inspect
-    // and populate a list before its parent list document exists. Once created,
-    // normal owner-based access applies as well.
     match /lists/{listId} {
-      allow read: if isEditor() || ownsList(listId);
+      // List metadata stays private to the owner. A publicRead list exposes only
+      // its nested catalog, not owner metadata on the list document itself.
+      allow read: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid;
+
       allow create: if request.auth != null
         && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if isEditor() || (
-        ownsList(listId)
-        && request.resource.data.ownerUid == resource.data.ownerUid
-      );
-      allow delete: if isEditor() || ownsList(listId);
+
+      allow update: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      allow delete: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid;
 
       match /categories/{categoryId} {
-        allow read: if isEditor() || canReadList(listId);
-        allow create, update, delete: if isEditor() || ownsList(listId);
+        allow read: if canReadList(listId);
+        allow create, update, delete: if ownsList(listId);
       }
 
       match /meals/{mealId} {
-        allow read: if isEditor() || canReadList(listId);
-        allow create, update, delete: if isEditor() || ownsList(listId);
+        allow read: if canReadList(listId);
+        allow create, update, delete: if ownsList(listId);
       }
     }
 
+    // Legacy top-level categories/meals remain in Firestore as an inert backup.
+    // No application access is granted to them by these rules.
     match /{document=**} {
       allow read, write: if false;
     }
