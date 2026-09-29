@@ -1,0 +1,265 @@
+.admin-shell {
+  width: min(100% - 2rem, 68rem);
+}
+
+.admin-hero {
+  max-width: 46rem;
+}
+
+.admin-nav {
+  margin: 1rem 0 0;
+}
+
+.admin-nav a,
+.recipe-link {
+  color: #7f3c1d;
+  font-weight: 750;
+}
+
+.admin-card {
+  margin-bottom: 1.25rem;
+}
+
+.admin-section-heading,
+.admin-section-body,
+.account-row {
+  padding: 1.5rem;
+}
+
+.admin-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid rgb(74 63 45 / 10%);
+}
+
+.admin-section-body p {
+  color: #655e52;
+  line-height: 1.55;
+}
+
+.admin-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.compact-form {
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+}
+
+.admin-form label:not(.checkbox-label),
+.search-field {
+  display: grid;
+  gap: 0.4rem;
+  color: #655e52;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.admin-form input,
+.admin-form select,
+.admin-form textarea,
+.search-field input {
+  width: 100%;
+  border: 1px solid rgb(74 63 45 / 20%);
+  border-radius: 0.7rem;
+  padding: 0.72rem 0.78rem;
+  color: #222019;
+  background: #fffdf8;
+  font: inherit;
+}
+
+.admin-form textarea {
+  resize: vertical;
+}
+
+.wide-field {
+  grid-column: 1 / -1;
+}
+
+.checkbox-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #524b40;
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.admin-status,
+.admin-help {
+  margin: 0;
+  padding: 0 1.5rem 1.25rem;
+  color: #655e52;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.admin-status.is-error {
+  color: #9a2f25;
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.account-email {
+  margin: 0.2rem 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.2rem;
+}
+
+.uid-line {
+  margin: 0;
+  color: #716b60;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.uid-line code {
+  font-size: 0.78rem;
+}
+
+.catalog-heading-row {
+  align-items: end;
+}
+
+.search-field {
+  width: min(18rem, 100%);
+}
+
+.admin-meal-list {
+  display: grid;
+}
+
+.admin-meal-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgb(74 63 45 / 10%);
+}
+
+.admin-meal-card:last-child {
+  border-bottom: 0;
+}
+
+.admin-meal-card.is-inactive {
+  background: rgb(112 100 83 / 8%);
+}
+
+.admin-meal-main {
+  min-width: 0;
+}
+
+.admin-meal-main h3 {
+  margin: 0 0 0.45rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.08rem;
+  font-weight: 600;
+}
+
+.admin-meal-description {
+  margin: 0.55rem 0 0;
+  color: #655e52;
+  line-height: 1.45;
+}
+
+.recipe-link {
+  display: inline-block;
+  margin-top: 0.55rem;
+  font-size: 0.84rem;
+}
+
+.admin-meal-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.45rem;
+}
+
+.compact-button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.danger-button {
+  color: #8b3429;
+}
+
+.inactive-label {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.22rem 0.5rem;
+  color: #666;
+  background: #e8e8e8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  .compact-form,
+  .admin-form {
+    grid-template-columns: 1fr;
+  }
+
+  .wide-field {
+    grid-column: auto;
+  }
+
+  .account-row,
+  .admin-section-heading,
+  .admin-meal-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .search-field {
+    width: 100%;
+  }
+
+  .admin-meal-actions {
+    align-self: stretch;
+  }
+
+  .admin-meal-actions .action-button {
+    flex: 1;
+  }
+}
