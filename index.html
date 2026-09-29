@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Generate weighted dinner ideas, schedule seven meals, and carry uneaten dinners into next week."
+      content="Plan each day of the week, generate weighted dinner ideas, schedule quick meals, and carry uneaten dinners forward."
     />
     <title>Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
@@ -16,16 +16,16 @@
         <p class="eyebrow">Dinner, decided</p>
         <h1>Weekly Menu</h1>
         <p class="intro">
-          Roll ten dinner ideas, remove three, schedule the remaining seven, and carry anything
-          you do not get to into next week.
+          Plan the shape of your week, roll dinner ideas for the days you are cooking, and let
+          quick meals and carryovers land where they fit best.
         </p>
       </header>
 
       <section class="menu-card" aria-labelledby="menu-heading">
         <div class="menu-heading-row">
           <div>
-            <p id="step-label" class="step-label">This week’s candidates</p>
-            <h2 id="menu-heading">Choose seven dinners</h2>
+            <p id="step-label" class="step-label">Plan the week</p>
+            <h2 id="menu-heading">What does each day need?</h2>
           </div>
 
           <div class="action-row">
@@ -33,13 +33,13 @@
               Clear removals
             </button>
             <button id="primary-button" class="action-button primary-button" type="button">
-              Roll 10 new ideas
+              Generate dinner ideas
             </button>
           </div>
         </div>
 
         <p id="selection-status" class="selection-status" aria-live="polite"></p>
-        <ol id="menu-list" class="menu-list" aria-live="polite"></ol>
+        <ol id="menu-list" class="week-setup-list" aria-live="polite"></ol>
       </section>
     </main>
 
