@@ -94,14 +94,11 @@ function enhanceMealChooser(control) {
   control.dataset.searchEnhanced = "true";
   const model = readSelectModel(select);
   const wrapper = document.createElement("div");
-  const searchLabel = document.createElement("label");
-  const searchText = document.createElement("span");
+  const searchControl = document.createElement("div");
   const search = document.createElement("input");
 
   wrapper.className = `searchable-meal-control${control.classList.contains("setup-manual-meal-control") ? " setup-searchable-meal-control" : ""}`;
-  searchLabel.className = "manual-meal-search-control";
-  searchText.className = "sr-only";
-  searchText.textContent = "Search saved meals";
+  searchControl.className = "manual-meal-search-control";
   search.type = "search";
   search.className = "manual-meal-search";
   search.placeholder = "Search meals…";
@@ -120,9 +117,9 @@ function enhanceMealChooser(control) {
     renderSelectModel(select, filtered, selectedValue);
   });
 
-  searchLabel.append(searchText, search);
+  searchControl.append(search);
   control.before(wrapper);
-  wrapper.append(searchLabel, control);
+  wrapper.append(searchControl, control);
 }
 
 function enhanceAllMealChoosers() {
