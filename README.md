@@ -2,13 +2,14 @@
 
 A static GitHub Pages dinner planner with Firebase-backed meal lists and household planning.
 
-## Version 0.17.0 behavior
+## Version 0.18.0 behavior
 
 - Keeps the application on GitHub Pages with no custom application server and no Cloud Functions.
 - Runs on the Firebase Spark plan using browser-side Firebase Authentication and Cloud Firestore.
 - Supports email/password account creation, sign-in, sign-out, password reset, and email verification.
 - Stores meal catalogs under Firestore `lists/{listId}/...` documents and subcollections.
 - Lets signed-in users create, duplicate, switch between, and delete named meal lists they own.
+- Keeps the active list selector visible while secondary list tools and the Add Category form stay collapsed until needed.
 - Lets list owners share a list with verified household editors by email address.
 - Shared editors can add, edit, disable, and delete categories and meals, but cannot change sharing, ownership, or delete the parent list.
 - Shares the active weekly planner state between a list owner and its verified household editors.
@@ -112,7 +113,7 @@ After startup, the planner subscribes to the Firestore document. Changes made by
 
 Signed-out users never read or write the cloud household planner. They use the public Family Dinners catalog with browser-local planner state only. This keeps weekly household information private even though the default meal catalog is public.
 
-Version 0.17 uses whole-document synchronization. If two household members make conflicting planner changes at nearly the same time, the most recently completed write wins. More granular conflict resolution can be added later if simultaneous editing becomes common.
+Version 0.18 continues to use whole-document synchronization. If two household members make conflicting planner changes at nearly the same time, the most recently completed write wins. More granular conflict resolution can be added later if simultaneous editing becomes common.
 
 ## Active-list and local cache behavior
 
@@ -130,7 +131,7 @@ weekly-menu:list:{listId}:nothing-new
 
 For signed-in accessible lists, Firestore is the shared source of truth and these keys are the local cache/fallback. For signed-out planning, the local keys remain the only planner persistence.
 
-Planner state schema version 7 requires stable meal IDs. Version 0.17 adds optional pinned-meal data without changing the schema version, so valid existing version-7 plans remain readable. Generated meals, pinned meals, and carryovers use `stableId` directly. Candidate `id` values remain temporary UI-instance identifiers used only for selecting, rejecting, and assigning candidates in a particular generated week.
+Planner state schema version 7 requires stable meal IDs and supports optional pinned-meal data, so valid existing version-7 plans remain readable. Generated meals, pinned meals, and carryovers use `stableId` directly. Candidate `id` values remain temporary UI-instance identifiers used only for selecting, rejecting, and assigning candidates in a particular generated week.
 
 ## List duplication and deletion
 
@@ -164,7 +165,7 @@ The Firebase browser configuration is intentionally present in client-side code.
 
 ## Catalog management
 
-The Manage Meals page includes an Available Lists selector plus Create, Duplicate, Delete, and Household Access controls. Each list has independent categories, meal records, weights, Quick/Big Meal tags, descriptions, recipe links, and Active state.
+The Manage Meals page keeps the active Available Lists selector visible, while **List tools** collapses Create, Duplicate, and Delete controls until they are needed. **Add a category** is also collapsed by default. The meal editor and catalog remain visible as the main day-to-day working areas. Each list has independent categories, meal records, weights, Quick/Big Meal tags, descriptions, recipe links, and Active state.
 
 The catalog browser can be filtered to one category. Selecting a category exposes its current weight and meal count and allows direct editing.
 
