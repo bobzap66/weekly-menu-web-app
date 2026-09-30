@@ -1,9 +1,9 @@
-import { menuData } from "./data.js?v=0.11.0";
+import { menuData } from "./data.js?v=0.15.0";
 import {
   addWeekToHistory,
   createHistory,
   isValidHistory,
-} from "./history.js?v=0.11.0";
+} from "./history.js?v=0.15.0";
 import {
   DAYS,
   DAY_TYPE_LABELS,
@@ -32,11 +32,19 @@ import {
   setDayType,
   toggleCarryover,
   toggleRejection,
-} from "./state.js?v=0.11.0";
-import { getPlannerStorageKeys } from "./planner-storage.js?v=0.11.0";
-import { buildNextWeekSuggestions } from "./week.js?v=0.11.0";
+} from "./state.js?v=0.15.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.15.0";
+import {
+  CLOUD_PLANNER_SCHEMA_VERSION,
+  canUseCloudPlanner,
+  loadCloudPlanner,
+  saveCloudPlanner,
+  subscribeCloudPlanner,
+} from "./planner-sync.js?v=0.15.0";
+import { buildNextWeekSuggestions } from "./week.js?v=0.15.0";
 
 const activeListId = document.documentElement.dataset.activeListId;
+const activeListName = document.documentElement.dataset.activeListName || "Meal List";
 const plannerStorageKeys = getPlannerStorageKeys(activeListId);
 const STORAGE_KEY = plannerStorageKeys.state;
 const HISTORY_STORAGE_KEY = plannerStorageKeys.history;
@@ -49,6 +57,13 @@ const selectionStatus = document.querySelector("#selection-status");
 const primaryButton = document.querySelector("#primary-button");
 const secondaryButton = document.querySelector("#secondary-button");
 const tertiaryButton = document.querySelector("#tertiary-button");
+const activeListSummary = document.querySelector("#active-list-summary");
+
+const cloudPlanningRequested = canUseCloudPlanner();
+let cloudPlanningActive = false;
+let cloudSaveTimer = null;
+let cloudWritePending = false;
+let unsubscribeCloudPlanner = null;
 
 function plural(count, singular, pluralForm = `${singular}s`) {
   return count === 1 ? singular : pluralForm;
@@ -84,28 +99,107 @@ function loadNothingNew() {
   }
 }
 
-function saveState() {
+function cacheState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
-    // The app still works without persistence if storage is unavailable.
+    // The app still works without a local cache if storage is unavailable.
   }
 }
 
-function saveHistory() {
+function cacheHistory() {
   try {
     localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
   } catch {
-    // The app still works without history if storage is unavailable.
+    // The app still works without a local cache if storage is unavailable.
   }
 }
 
-function saveNothingNew() {
+function cacheNothingNew() {
   try {
     localStorage.setItem(NOTHING_NEW_STORAGE_KEY, String(nothingNew));
   } catch {
-    // The app still works without persistence if storage is unavailable.
+    // The app still works without a local cache if storage is unavailable.
   }
+}
+
+function plannerSnapshot() {
+  return { state, history, nothingNew };
+}
+
+function isValidCloudPlanner(value) {
+  return Boolean(
+    value &&
+    value.schemaVersion === CLOUD_PLANNER_SCHEMA_VERSION &&
+    isValidMenuState(value.state) &&
+    isValidHistory(value.history) &&
+    typeof value.nothingNew === "boolean"
+  );
+}
+
+function samePlannerSnapshot(value) {
+  if (!isValidCloudPlanner(value)) return false;
+  return JSON.stringify(value.state) === JSON.stringify(state)
+    && JSON.stringify(value.history) === JSON.stringify(history)
+    && value.nothingNew === nothingNew;
+}
+
+function updatePersistenceSummary() {
+  if (!activeListSummary) return;
+
+  const persistenceText = cloudPlanningActive
+    ? "Household plan: cloud synced"
+    : cloudPlanningRequested
+      ? "Household plan: local fallback"
+      : "Plan saved on this browser";
+
+  activeListSummary.textContent = `List: ${activeListName} · ${persistenceText}`;
+  activeListSummary.hidden = false;
+}
+
+function queueCloudSave() {
+  if (!cloudPlanningActive) return;
+
+  cloudWritePending = true;
+  if (cloudSaveTimer) window.clearTimeout(cloudSaveTimer);
+
+  cloudSaveTimer = window.setTimeout(async () => {
+    cloudSaveTimer = null;
+    try {
+      await saveCloudPlanner(activeListId, plannerSnapshot());
+    } catch (error) {
+      console.warn("Could not sync the household planner to Firestore. Local changes are still cached in this browser.", error);
+    } finally {
+      cloudWritePending = false;
+    }
+  }, 150);
+}
+
+function saveState() {
+  cacheState();
+  queueCloudSave();
+}
+
+function saveHistory() {
+  cacheHistory();
+  queueCloudSave();
+}
+
+function saveNothingNew() {
+  cacheNothingNew();
+  queueCloudSave();
+}
+
+function applyCloudPlanner(value) {
+  if (!isValidCloudPlanner(value)) return false;
+
+  state = value.state;
+  history = value.history;
+  nothingNew = value.nothingNew;
+  cacheState();
+  cacheHistory();
+  cacheNothingNew();
+  return true;
 }
 
 function currentCarryoverCandidates() {
@@ -580,6 +674,43 @@ let nothingNew = loadNothingNew();
 let state = loadState();
 if (!state) {
   state = createPlanningState();
-  saveState();
+  cacheState();
 }
+
+if (cloudPlanningRequested) {
+  try {
+    const remotePlanner = await loadCloudPlanner(activeListId);
+    if (isValidCloudPlanner(remotePlanner)) {
+      applyCloudPlanner(remotePlanner);
+    } else {
+      await saveCloudPlanner(activeListId, plannerSnapshot());
+    }
+    cloudPlanningActive = true;
+  } catch (error) {
+    console.warn("Cloud household planning is unavailable for this list; using this browser's local planner state instead.", error);
+  }
+}
+
+updatePersistenceSummary();
 render();
+
+if (cloudPlanningActive) {
+  unsubscribeCloudPlanner = subscribeCloudPlanner(
+    activeListId,
+    (remotePlanner, metadata) => {
+      if (metadata.hasPendingWrites || cloudWritePending || !isValidCloudPlanner(remotePlanner)) return;
+      if (samePlannerSnapshot(remotePlanner)) return;
+
+      applyCloudPlanner(remotePlanner);
+      render();
+    },
+    (error) => {
+      console.warn("Household planner live sync was interrupted.", error);
+    },
+  );
+}
+
+window.addEventListener("beforeunload", () => {
+  if (cloudSaveTimer) window.clearTimeout(cloudSaveTimer);
+  if (unsubscribeCloudPlanner) unsubscribeCloudPlanner();
+});
