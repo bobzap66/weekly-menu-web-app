@@ -23,13 +23,22 @@ export const DAY_TYPE_LABELS = {
 };
 
 export const DEFAULT_EXTRA_CHOICES = 3;
+export const STATE_VERSION = 7;
 
 const VALID_MODES = new Set(["setup", "choosing", "scheduled"]);
 const VALID_DAY_TYPES = new Set(Object.values(DAY_TYPES));
 const VALID_REQUIREMENTS = new Set(["quick", "bigMeal"]);
 
+function hasStableMealId(meal) {
+  return typeof meal?.stableId === "string" && meal.stableId.length > 0;
+}
+
 function candidateId(suggestion, index) {
-  return `${index}-${suggestion.categoryId}-${suggestion.mealName}`;
+  if (!hasStableMealId(suggestion)) {
+    throw new Error("Suggestion is missing a stableId.");
+  }
+
+  return `${index}:${suggestion.stableId}`;
 }
 
 export function isMealDayType(type) {
@@ -121,12 +130,16 @@ export function createPlanningState(
     throw new Error("Carryover meals must be an array.");
   }
 
+  if (carryoverMeals.some((meal) => !hasStableMealId(meal))) {
+    throw new Error("Carryover meals must have stable IDs.");
+  }
+
   if (!isValidWeekPlan(weekPlan)) {
     throw new Error("Week plan is invalid.");
   }
 
   return {
-    version: 6,
+    version: STATE_VERSION,
     mode: "setup",
     createdAt,
     weekPlan: cloneWeekPlan(weekPlan),
@@ -281,8 +294,16 @@ export function createMenuState(
     throw new Error("Suggestions must be an array.");
   }
 
+  if (suggestions.some((meal) => !hasStableMealId(meal))) {
+    throw new Error("Suggestions must have stable IDs.");
+  }
+
   if (!Array.isArray(deferredCarryovers)) {
     throw new Error("Deferred carryovers must be an array.");
+  }
+
+  if (deferredCarryovers.some((meal) => !hasStableMealId(meal))) {
+    throw new Error("Deferred carryovers must have stable IDs.");
   }
 
   if (!isValidWeekPlan(weekPlan)) {
@@ -300,7 +321,7 @@ export function createMenuState(
   }));
 
   const state = {
-    version: 6,
+    version: STATE_VERSION,
     mode: targetMealCount === 0 ? "scheduled" : "choosing",
     createdAt,
     weekPlan: cloneWeekPlan(weekPlan),
@@ -531,9 +552,8 @@ export function reopenWeekSetup(state) {
   ];
   const seen = new Set();
   const uniqueCarryovers = carryovers.filter((meal) => {
-    const key = meal.mealKey ?? `${meal.categoryId}:${meal.mealName}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
+    if (seen.has(meal.stableId)) return false;
+    seen.add(meal.stableId);
     return true;
   });
 
@@ -543,7 +563,7 @@ export function reopenWeekSetup(state) {
 export function isValidMenuState(value) {
   if (
     !value ||
-    value.version !== 6 ||
+    value.version !== STATE_VERSION ||
     !VALID_MODES.has(value.mode) ||
     typeof value.createdAt !== "string" ||
     !isValidWeekPlan(value.weekPlan) ||
@@ -557,6 +577,13 @@ export function isValidMenuState(value) {
     return false;
   }
 
+  if (
+    !value.pendingCarryovers.every(hasStableMealId) ||
+    !value.candidates.every(hasStableMealId)
+  ) {
+    return false;
+  }
+
   if (value.mode === "setup") {
     return (
       value.candidates.length === 0 &&
@@ -564,6 +591,10 @@ export function isValidMenuState(value) {
       value.carryoverIds.length === 0 &&
       Object.keys(value.dayAssignments).length === 0
     );
+  }
+
+  if (!value.candidates.every((candidate) => typeof candidate.id === "string" && candidate.id.length > 0)) {
+    return false;
   }
 
   const candidateIds = new Set(value.candidates.map((candidate) => candidate.id));
