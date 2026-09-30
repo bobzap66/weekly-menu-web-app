@@ -113,7 +113,7 @@ test("applies a guaranteed modifier and preserves meal metadata and stable ID", 
 
   const result = generateMenu(fixture, () => 0, null, { allowNew: false })[0];
   assert.equal(result.stableId, "meal-dinner");
-  assert.equal(result.mealKey, "meal-dinner");
+  assert.equal("mealKey" in result, false);
   assert.equal(result.mealName, "Dinner with a modifier");
   assert.equal(result.quick, true);
   assert.equal(result.bigMeal, true);
