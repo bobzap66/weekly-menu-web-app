@@ -12,7 +12,8 @@ import {
   DEFAULT_LIST_ID,
   DEFAULT_LIST_NAME,
   setStoredActiveList,
-} from "./list-config.js?v=0.10.2";
+} from "./list-config.js?v=0.11.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.11.0";
 
 const DELETE_BATCH_SIZE = 400;
 
@@ -75,6 +76,15 @@ async function deleteSnapshotDocuments(listId, categorySnapshot, mealSnapshot) {
   }
 }
 
+function removeLocalPlannerStorage(listId) {
+  try {
+    const keys = getPlannerStorageKeys(listId);
+    for (const key of Object.values(keys)) localStorage.removeItem(key);
+  } catch {
+    // Firestore deletion should still succeed if browser storage is unavailable.
+  }
+}
+
 listSelect.addEventListener("change", refreshDeleteControls);
 deleteListConfirm.addEventListener("input", refreshDeleteControls);
 
@@ -131,6 +141,7 @@ deleteListForm.addEventListener("submit", async (event) => {
     // Delete the parent last. Firestore does not cascade subcollection deletes,
     // and the child-write rules depend on the parent list still existing.
     await deleteDoc(doc(db, "lists", selected.id));
+    removeLocalPlannerStorage(selected.id);
 
     setStoredActiveList(DEFAULT_LIST_ID, DEFAULT_LIST_NAME);
     setListStatus(`${selected.name} deleted. Reloading your remaining lists…`);
