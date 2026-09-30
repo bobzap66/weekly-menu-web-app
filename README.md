@@ -2,24 +2,23 @@
 
 A static GitHub Pages dinner planner with Firebase-backed editable meal lists.
 
-## Version 0.10.2 behavior
+## Version 0.11.0 behavior
 
 - Keeps the planner itself on GitHub Pages; there is no custom application server.
 - Stores meal catalogs under Firestore `lists/{listId}/...` documents and subcollections.
-- Lets signed-in users create multiple named meal lists and switch between lists they own.
-- Lets signed-in users duplicate the active list into a new independent private list.
-- Lets signed-in users permanently delete non-default lists after typing the list name to confirm.
+- Lets signed-in users create, duplicate, switch between, and delete named meal lists they own.
 - Protects the public **Family Dinners** default list from deletion.
 - New empty lists start private; duplicated lists also start private.
 - Remembers the active list in browser storage.
 - While signed in, the planner uses the currently selected owned list.
 - While signed out, the planner uses the public **Family Dinners** list.
-- Shows the active list name on the planner.
+- Gives every list its own local planner state, carryovers, recency history, and **Nothing new** preference.
+- Uses `stableId` as the canonical meal identity throughout generation, carryovers, planner state, and history.
 - Falls back to bundled `src/data.js` meals only if the Firestore catalog cannot be read.
 - Provides an authenticated **Manage Meals** page for adding, editing, disabling, and deleting meals.
 - Supports category creation, category weights, meal weights, Quick and Big Meal / Guests tags, descriptions, recipe links, and Active state.
-- Uses stable meal IDs as the canonical identity for generated meals, carryovers, and recency history.
 - Supports **Edit week setup**, **Change choices**, carryovers, printing, and the week-level **Nothing new** option.
+- Deploys Firestore Security Rules automatically from GitHub Actions when the checked-in rules change.
 
 Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently require **Quick** and **Big Meal / Guests**; a day with both checked must receive a meal carrying both tags.
 
@@ -66,15 +65,27 @@ All existing Family Dinners meal documents retain their original Firestore docum
 
 Duplicating a list preserves every category document ID, meal document ID, stable meal ID, weight, tag, description, recipe link, order value, and other stored meal/category fields inside the copy. Because each copy lives under a different list document, the copied catalog can then be edited independently without affecting its source.
 
-## Active-list behavior
+## Active-list and local planner behavior
 
 Manage Meals lists all list documents owned by the signed-in Firebase user. Switching the selected list updates the browser's active-list preference. Opening the planner while that user remains signed in loads the selected list.
 
 If the saved active list is no longer accessible, the planner tries the public Family Dinners list. Signed-out users always use Family Dinners regardless of the last private list selected while signed in.
 
-Deleting an active non-default list resets the stored active-list preference to Family Dinners and reloads Manage Meals. If the user does not own Family Dinners, Manage Meals falls back to another owned list when one exists, while the planner can still read Family Dinners as the public fallback.
+Each list has its own browser-storage namespace:
 
-The app is still pre-alpha, so switching to a different list deliberately clears current local weekly-planning state, recency history, and the Nothing New toggle. This prevents carryovers or test history from one list leaking into another without adding a compatibility layer we do not yet need.
+```text
+weekly-menu:list:{listId}:state:v1
+weekly-menu:list:{listId}:history:v2
+weekly-menu:list:{listId}:nothing-new
+```
+
+That means switching lists no longer clears the planner. A list remembers its current week setup or scheduled week, pending carryovers, meal recency history, and Nothing New setting independently from every other list. Returning to that list restores its own planner state.
+
+Version 0.11.0 intentionally starts the new per-list storage clean rather than translating the old pre-alpha global planner keys. The application is still pre-alpha, so backward compatibility with those old local test-state formats is not required.
+
+Planner state schema version 7 requires stable meal IDs. The old `mealKey` compatibility field has been removed; generated meals and carryovers use `stableId` directly. Candidate `id` values remain temporary UI-instance identifiers used only for selecting, rejecting, and assigning the candidates in a particular generated week.
+
+Deleting an active non-default list resets the stored active-list preference to Family Dinners and reloads Manage Meals. If the user does not own Family Dinners, Manage Meals falls back to another owned list when one exists, while the planner can still read Family Dinners as the public fallback.
 
 ## Security rules
 
@@ -90,6 +101,8 @@ The current access model is:
 - The legacy top-level catalog and all unspecified Firestore paths are denied.
 
 The Firebase browser configuration is intentionally present in client-side code. Those values identify the Firebase project; authorization comes from Firebase Authentication and Firestore Security Rules.
+
+The checked-in rules are the source of truth. `.github/workflows/deploy-firestore-rules.yml` uses GitHub OIDC and Google Workload Identity Federation to deploy rules automatically when `firestore.rules`, `firebase.json`, or the deployment workflow changes on `main`. See `FIREBASE_RULES_CI.md` for the one-time identity setup.
 
 ## Catalog management
 
@@ -111,7 +124,7 @@ Normal categories do not need stored placeholder meals such as `New BBQ Recipe`.
 
 **New Category** is a separate **5% chance per generation** and occupies one candidate slot when it appears. Required Quick and Big Meal / Guests slots never become new-idea prompts because those prompts do not carry qualifying tags.
 
-The week setup screen includes **Nothing new**. When checked, both New Recipe and New Category prompts are suppressed for that week's generation and rerolls.
+The week setup screen includes **Nothing new**. When checked, both New Recipe and New Category prompts are suppressed for that week's generation and rerolls. This preference is stored independently for each meal list.
 
 ## Weekly planning
 
@@ -123,7 +136,7 @@ The generator reserves enough qualifying candidates to make the planned week pos
 
 A meal eaten last week uses 15% of its normal weight. Its weight then recovers to 35%, 55%, 70%, 82%, and 92% over the following five weeks. After six weeks, it returns to its normal weight.
 
-Only the specific stable meal ID is penalized. A dinner marked for carryover is not treated as eaten and is inserted directly into the next week's candidates instead.
+Only the specific stable meal ID is penalized. A dinner marked for carryover is not treated as eaten and is inserted directly into the next week's candidates instead. History is stored separately for each meal list.
 
 ## Run locally
 
