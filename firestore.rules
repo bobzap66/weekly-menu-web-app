@@ -6,23 +6,38 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/lists/$(listId)).data.ownerUid == request.auth.uid;
     }
 
+    function editsList(listId) {
+      return request.auth != null
+        && request.auth.uid in get(/databases/$(database)/documents/lists/$(listId)).data.get('editorUids', []);
+    }
+
+    function canEditList(listId) {
+      return ownsList(listId) || editsList(listId);
+    }
+
     function canReadList(listId) {
-      return ownsList(listId)
+      return canEditList(listId)
         || get(/databases/$(database)/documents/lists/$(listId)).data.publicRead == true;
     }
 
     match /lists/{listId} {
-      // List metadata stays private to the owner. A publicRead list exposes only
-      // its nested catalog, not owner metadata on the list document itself.
+      // Owners and explicit editors can read list metadata. Public-read lists expose
+      // only their nested catalog to signed-out users, not owner/editor metadata.
       allow read: if request.auth != null
-        && resource.data.ownerUid == request.auth.uid;
+        && (
+          resource.data.ownerUid == request.auth.uid
+          || request.auth.uid in resource.data.get('editorUids', [])
+        );
 
       allow create: if request.auth != null
-        && request.resource.data.ownerUid == request.auth.uid;
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.get('editorUids', []) is list;
 
+      // Ownership, sharing, visibility, and other list metadata stay owner-controlled.
       allow update: if request.auth != null
         && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.ownerUid == resource.data.ownerUid;
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.get('editorUids', []) is list;
 
       // The default Family Dinners document is the public signed-out fallback,
       // so protect the parent list from accidental deletion even by its owner.
@@ -32,12 +47,12 @@ service cloud.firestore {
 
       match /categories/{categoryId} {
         allow read: if canReadList(listId);
-        allow create, update, delete: if ownsList(listId);
+        allow create, update, delete: if canEditList(listId);
       }
 
       match /meals/{mealId} {
         allow read: if canReadList(listId);
-        allow create, update, delete: if ownsList(listId);
+        allow create, update, delete: if canEditList(listId);
       }
     }
 
