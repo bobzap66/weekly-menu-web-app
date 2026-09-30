@@ -413,6 +413,98 @@
   padding-top: 1rem;
 }
 
+/* Collapsible management controls */
+.list-selector-row {
+  padding: 1.25rem 1.5rem;
+}
+
+.list-selector-row .list-select-field {
+  width: min(30rem, 100%);
+}
+
+.admin-disclosure {
+  border-top: 1px solid rgb(74 63 45 / 10%);
+}
+
+.admin-disclosure > summary,
+.admin-card-details > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-disclosure > summary::-webkit-details-marker,
+.admin-card-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.5rem;
+  color: #524b40;
+  background: rgb(244 239 227 / 38%);
+}
+
+.admin-disclosure > summary:hover,
+.admin-card-details > summary:hover {
+  background: rgb(244 229 212 / 38%);
+}
+
+.admin-disclosure > summary:focus-visible,
+.admin-card-details > summary:focus-visible {
+  outline: 3px solid #e7a35f;
+  outline-offset: -3px;
+}
+
+.admin-disclosure > summary::after,
+.admin-card-details > summary::after {
+  flex: 0 0 auto;
+  margin-left: 0.15rem;
+  content: "+";
+  color: #9b4c26;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.admin-disclosure[open] > summary::after,
+.admin-card-details[open] > summary::after {
+  content: "−";
+}
+
+.disclosure-title {
+  font-weight: 800;
+}
+
+.disclosure-note {
+  margin-left: auto;
+  color: #716b60;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.disclosure-body {
+  padding: 1.1rem 1.5rem 1.25rem;
+}
+
+.collapsible-card {
+  overflow: hidden;
+}
+
+.admin-card-details > .collapsible-heading {
+  border-bottom: 0;
+}
+
+.admin-card-details[open] > .collapsible-heading {
+  border-bottom: 1px solid rgb(74 63 45 / 10%);
+}
+
+.admin-card-details > .collapsible-heading .disclosure-note {
+  margin-left: auto;
+}
+
 @media (max-width: 720px) {
   .compact-form,
   .admin-form,
@@ -464,5 +556,24 @@
 
   .admin-meal-actions .action-button {
     flex: 1;
+  }
+
+  .admin-disclosure > summary,
+  .collapsible-heading {
+    align-items: flex-start;
+  }
+
+  .admin-disclosure > summary {
+    flex-wrap: wrap;
+  }
+
+  .disclosure-note {
+    width: calc(100% - 2rem);
+    margin-left: 0;
+  }
+
+  .admin-card-details > .collapsible-heading .disclosure-note {
+    width: auto;
+    margin-left: 0;
   }
 }
