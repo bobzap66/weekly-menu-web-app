@@ -1,0 +1,484 @@
+:root {
+  --wm-bg: #f4efe3;
+  --wm-surface: #fffdf8;
+  --wm-surface-muted: #faf6ef;
+  --wm-ink: #222019;
+  --wm-muted: #655e52;
+  --wm-soft: #716b60;
+  --wm-accent: #9b4c26;
+  --wm-accent-dark: #7f3c1d;
+  --wm-accent-soft: #f4e5d4;
+  --wm-line: rgb(74 63 45 / 13%);
+  --wm-line-strong: rgb(74 63 45 / 20%);
+  --wm-focus: #e7a35f;
+  --wm-shadow: 0 1rem 2.6rem rgb(69 48 22 / 8%);
+  --wm-shadow-soft: 0 0.45rem 1.4rem rgb(69 48 22 / 6%);
+}
+
+body {
+  background:
+    radial-gradient(circle at 10% 0%, rgb(237 172 85 / 22%), transparent 28rem),
+    radial-gradient(circle at 92% 12%, rgb(155 76 38 / 9%), transparent 24rem),
+    var(--wm-bg);
+}
+
+.app-shell {
+  padding-top: 1rem;
+  padding-bottom: clamp(3rem, 7vw, 5rem);
+}
+
+/* Shared application navigation */
+.app-nav {
+  position: sticky;
+  z-index: 20;
+  top: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: clamp(1.7rem, 4vw, 2.7rem);
+  border: 1px solid var(--wm-line);
+  border-radius: 1rem;
+  padding: 0.45rem;
+  background: rgb(255 253 248 / 88%);
+  box-shadow: var(--wm-shadow-soft);
+  backdrop-filter: blur(14px);
+}
+
+.app-nav-brand {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.7rem;
+  color: var(--wm-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.02rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.app-nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  border-radius: 0.7rem;
+  padding: 0.45rem 0.75rem;
+  color: #5b5449;
+  font-size: 0.86rem;
+  font-weight: 780;
+  text-decoration: none;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    transform 120ms ease;
+}
+
+.app-nav-link:hover {
+  color: var(--wm-accent-dark);
+  background: #f7eee3;
+}
+
+.app-nav-link.is-active {
+  color: #fffdf8;
+  background: var(--wm-accent);
+  box-shadow: 0 0.25rem 0.7rem rgb(155 76 38 / 20%);
+}
+
+.app-nav-link:focus-visible,
+.app-nav-brand:focus-visible {
+  outline: 3px solid var(--wm-focus);
+  outline-offset: 2px;
+}
+
+/* Hero hierarchy */
+.hero {
+  margin-bottom: 1.65rem;
+}
+
+.hero:not(.utility-hero) h1 {
+  font-size: clamp(3.15rem, 9vw, 5rem);
+}
+
+.utility-hero {
+  max-width: 48rem;
+  margin-bottom: 1.35rem;
+}
+
+.utility-hero h1 {
+  margin-bottom: 0.45rem;
+  font-size: clamp(2.35rem, 7vw, 3.55rem);
+  line-height: 0.98;
+}
+
+.utility-hero .intro {
+  max-width: 44rem;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.hero-nav-fallback,
+.admin-nav,
+.history-nav {
+  display: none;
+}
+
+.hero > .selection-status {
+  display: inline-block;
+  width: auto;
+  margin-top: 1rem;
+  border: 1px solid var(--wm-line);
+  border-radius: 999px;
+  padding: 0.48rem 0.75rem;
+  background: rgb(255 253 248 / 70%);
+  font-size: 0.8rem;
+}
+
+/* Surfaces and controls */
+.menu-card {
+  border-color: var(--wm-line);
+  background: rgb(255 253 248 / 92%);
+  box-shadow: var(--wm-shadow);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: rgb(74 63 45 / 32%);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 0;
+  border-color: rgb(155 76 38 / 48%) !important;
+  box-shadow: 0 0 0 3px rgb(231 163 95 / 28%);
+}
+
+.selection-status {
+  border-color: var(--wm-line);
+  background: rgb(244 239 227 / 58%);
+}
+
+/* Week setup gains a little more scanability. */
+.setup-day-item {
+  transition: background 120ms ease;
+}
+
+.setup-day-item:hover {
+  background: rgb(244 229 212 / 24%);
+}
+
+.setup-day-name {
+  min-width: 5.5rem;
+}
+
+/* Final schedule: day rail + meal content. */
+.week-schedule-list {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.65rem;
+  background: rgb(244 239 227 / 34%);
+}
+
+.schedule-day-item {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 9rem) minmax(0, 1fr);
+  grid-template-areas:
+    "day meal"
+    "day controls";
+  column-gap: 1.1rem;
+  row-gap: 0.65rem;
+  border: 1px solid var(--wm-line);
+  border-radius: 0.95rem;
+  padding: 1rem 1.1rem;
+  background: var(--wm-surface);
+  box-shadow: 0 0.25rem 0.9rem rgb(69 48 22 / 4%);
+}
+
+.schedule-day-item:last-child {
+  border-bottom: 1px solid var(--wm-line);
+}
+
+.schedule-day-item.nonmeal-day {
+  background: #f9f5ed;
+}
+
+.schedule-day-heading {
+  grid-area: day;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  border-right: 1px solid var(--wm-line);
+  padding-right: 0.95rem;
+}
+
+.schedule-day-name {
+  font-size: 1.24rem;
+}
+
+.schedule-day-badges {
+  justify-content: flex-start;
+}
+
+.scheduled-meal-row {
+  grid-area: meal;
+  min-width: 0;
+  align-self: center;
+}
+
+.scheduled-meal-row .meal-name {
+  margin-bottom: 0.3rem;
+  font-size: 1.28rem;
+}
+
+.scheduled-controls {
+  grid-area: controls;
+  margin-top: 0.1rem;
+  border-top: 1px solid rgb(74 63 45 / 8%);
+  padding-top: 0.7rem;
+}
+
+.nonmeal-note {
+  grid-area: meal;
+  align-self: center;
+  color: #847d72;
+  font-style: italic;
+}
+
+/* Manage catalog: stronger content hierarchy, quieter utilities. */
+.admin-card {
+  box-shadow: 0 0.7rem 2rem rgb(69 48 22 / 6%);
+}
+
+.admin-meal-card {
+  transition: background 120ms ease;
+}
+
+.admin-meal-card:hover {
+  background: rgb(244 229 212 / 22%);
+}
+
+.admin-meal-main h3 {
+  font-size: 1.16rem;
+}
+
+.admin-meal-actions .secondary-button {
+  background: rgb(255 253 248 / 70%);
+}
+
+.weight-label {
+  color: #746d62;
+  background: #f2eee6;
+}
+
+/* History reads as an archive of distinct weeks instead of one long table. */
+.history-card {
+  background: rgb(255 253 248 / 84%);
+}
+
+.history-toolbar {
+  border-bottom: 1px solid var(--wm-line);
+  background: rgb(250 246 239 / 72%);
+}
+
+.history-weeks {
+  gap: 0.9rem;
+  padding: 0.9rem;
+  background: rgb(244 239 227 / 34%);
+}
+
+.history-week-card {
+  border: 1px solid var(--wm-line);
+  border-radius: 1rem;
+  padding: 1.15rem 1.2rem 1.25rem;
+  background: var(--wm-surface);
+  box-shadow: 0 0.3rem 1rem rgb(69 48 22 / 4%);
+}
+
+.history-week-card:last-child {
+  border-bottom: 1px solid var(--wm-line);
+}
+
+.history-week-heading h2 {
+  font-size: 1.42rem;
+}
+
+.history-day-list {
+  border-color: var(--wm-line);
+  background: #fffefa;
+}
+
+.history-day {
+  transition: background 120ms ease;
+}
+
+.history-day:hover {
+  background: rgb(244 229 212 / 20%);
+}
+
+.history-nonmeal {
+  color: #91897d;
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    width: min(100% - 1rem, 68rem);
+    padding-top: 0.5rem;
+  }
+
+  .app-nav {
+    top: 0.35rem;
+    gap: 0.3rem;
+    margin-bottom: 1.4rem;
+    border-radius: 0.9rem;
+    padding: 0.35rem;
+  }
+
+  .app-nav-brand {
+    display: none;
+  }
+
+  .app-nav-links {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+  }
+
+  .app-nav-link {
+    min-width: 0;
+    padding-inline: 0.45rem;
+    font-size: 0.8rem;
+  }
+
+  .utility-hero {
+    margin-bottom: 1rem;
+    padding: 0 0.35rem;
+  }
+
+  .utility-hero h1 {
+    font-size: clamp(2.2rem, 11vw, 3rem);
+  }
+
+  .utility-hero .intro {
+    font-size: 0.95rem;
+  }
+
+  .week-schedule-list {
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .schedule-day-item {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "day"
+      "meal"
+      "controls";
+    gap: 0.65rem;
+    padding: 0.9rem;
+  }
+
+  .schedule-day-heading {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-right: 0;
+    border-bottom: 1px solid var(--wm-line);
+    padding: 0 0 0.65rem;
+  }
+
+  .schedule-day-badges {
+    justify-content: flex-end;
+  }
+
+  .scheduled-controls {
+    padding-top: 0.6rem;
+  }
+
+  .history-weeks {
+    padding: 0.55rem;
+  }
+
+  .history-week-card {
+    padding: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-nav-link,
+  input,
+  select,
+  textarea,
+  .setup-day-item,
+  .admin-meal-card,
+  .history-day {
+    transition: none;
+  }
+}
+
+@media print {
+  .app-nav {
+    display: none !important;
+  }
+
+  .app-shell {
+    padding-top: 0;
+  }
+
+  .week-schedule-list {
+    display: block;
+    padding: 0;
+    background: #fff;
+  }
+
+  .schedule-day-item {
+    display: block;
+    border: 0;
+    border-bottom: 1px solid #aaa;
+    border-radius: 0;
+    padding: 0.09in 0.04in 0.1in;
+    background: #fff !important;
+    box-shadow: none;
+  }
+
+  .schedule-day-heading {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border: 0;
+    padding: 0;
+  }
+
+  .scheduled-controls {
+    border: 0;
+    padding: 0;
+  }
+}
