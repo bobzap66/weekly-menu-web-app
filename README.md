@@ -2,7 +2,7 @@
 
 A static GitHub Pages dinner planner with Firebase-backed meal lists and household planning.
 
-## Version 0.15.0 behavior
+## Version 0.16.0 behavior
 
 - Keeps the application on GitHub Pages with no custom application server and no Cloud Functions.
 - Runs on the Firebase Spark plan using browser-side Firebase Authentication and Cloud Firestore.
@@ -12,7 +12,8 @@ A static GitHub Pages dinner planner with Firebase-backed meal lists and househo
 - Lets list owners share a list with verified household editors by email address.
 - Shared editors can add, edit, disable, and delete categories and meals, but cannot change sharing, ownership, or delete the parent list.
 - Shares the active weekly planner state between a list owner and its verified household editors.
-- Syncs week setup, generated candidates, scheduled dinners, carryovers, meal recency history, and the **Nothing new** preference through Firestore.
+- Syncs week setup, generated candidates, scheduled dinners, manual meal replacements, carryovers, meal recency history, and the **Nothing new** preference through Firestore.
+- Lets any scheduled dinner be replaced manually with an exact saved meal from the active list while preserving Quick and Big Meal / Guests requirements.
 - Keeps browser-local planner storage as a cache and fallback if cloud planner access is unavailable.
 - Keeps signed-out planning browser-local even for the public **Family Dinners** catalog; the household planner itself is never public.
 - Protects the public **Family Dinners** default list from deletion.
@@ -98,7 +99,7 @@ The shared document contains the complete planner state needed to continue the s
 - current week setup and day types;
 - Quick and Big Meal / Guests requirements;
 - generated meal candidates and removals;
-- final scheduled week and manual day assignments;
+- final scheduled week, manual day assignments, and manually selected meals;
 - carryovers into the next week;
 - meal recency history used by weighting;
 - the week-level **Nothing new** setting.
@@ -109,7 +110,7 @@ After startup, the planner subscribes to the Firestore document. Changes made by
 
 Signed-out users never read or write the cloud household planner. They use the public Family Dinners catalog with browser-local planner state only. This keeps weekly household information private even though the default meal catalog is public.
 
-Version 0.15 uses whole-document synchronization. If two household members make conflicting planner changes at nearly the same time, the most recently completed write wins. More granular conflict resolution can be added later if simultaneous editing becomes common.
+Version 0.16 uses whole-document synchronization. If two household members make conflicting planner changes at nearly the same time, the most recently completed write wins. More granular conflict resolution can be added later if simultaneous editing becomes common.
 
 ## Active-list and local cache behavior
 
@@ -178,6 +179,8 @@ The week setup screen includes **Nothing new**. When checked, both New Recipe an
 The planner always covers Monday through Sunday. Non-dinner days reduce the number of generated dinners. Dinner days may have no tag requirement, Quick only, Big Meal / Guests only, or both.
 
 The generator reserves enough qualifying candidates to make the planned week possible. Carryovers remain automatic candidates unless explicitly removed, and their stable ID, Quick/Big tags, descriptions, and recipe links travel with them.
+
+Once the week is scheduled, each dinner day has a **Set meal** picker grouped by category. It can replace the generated dinner with any active saved meal that satisfies that day's Quick and Big Meal / Guests requirements. The replacement keeps the same scheduled day, is saved into the normal planner state, and therefore syncs to other signed-in household members. Replacing a dinner clears that slot's carryover marker because the carryover belongs to the previous meal.
 
 The **Print week** feature remains available for scheduled weeks.
 
