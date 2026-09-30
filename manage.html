@@ -102,7 +102,7 @@
             </div>
             <p id="verification-status" class="admin-status" aria-live="polite"></p>
           </div>
-          <p class="admin-help">The list selected here is also the list the planner will use while this account is signed in on this browser. Household sharing now uses the account email address rather than a Firebase UID.</p>
+          <p class="admin-help">The list selected here is also the list the planner will use while this account is signed in. Owners and verified household editors share the same cloud-synced weekly plan for that list.</p>
         </section>
 
         <section class="menu-card admin-card" aria-labelledby="lists-heading">
@@ -144,7 +144,7 @@
               </form>
             </div>
           </div>
-          <p class="admin-help">Lists marked “(shared)” belong to another account but give you editor access to their categories and meals. Duplicating any available list creates a new private copy that you own. Only an owner can delete a list, and Family Dinners remains protected because it is the public catalog used by the signed-out planner.</p>
+          <p class="admin-help">Lists marked “(shared)” belong to another account but give you editor access to their categories, meals, and household weekly plan. Duplicating any available list creates a new private copy that you own; the copied list starts with its own separate weekly plan. Only an owner can delete a list, and Family Dinners remains protected because it is the public catalog used by the signed-out planner.</p>
           <p id="list-status" class="admin-status" aria-live="polite"></p>
         </section>
 
@@ -222,7 +222,8 @@
               <input id="meal-recipe-url" type="url" placeholder="https://…" />
             </label>
             <label class="wide-field">
-              <span>Short description <small>(optional)</small></span>
+              <span>Short description <small>(optional)</small>
+              </span>
               <textarea id="meal-description" maxlength="280" rows="3"></textarea>
             </label>
             <div class="checkbox-row wide-field">
@@ -282,9 +283,9 @@
       </section>
     </main>
 
-    <script type="module" src="./src/auth-ui.js?v=0.14.0"></script>
-    <script type="module" src="./src/manage-list.js?v=0.14.0"></script>
-    <script type="module" src="./src/list-sharing.js?v=0.14.1"></script>
-    <script type="module" src="./src/list-delete.js?v=0.14.0"></script>
+    <script type="module" src="./src/auth-ui.js?v=0.15.0"></script>
+    <script type="module" src="./src/manage-list.js?v=0.15.0"></script>
+    <script type="module" src="./src/list-sharing.js?v=0.15.0"></script>
+    <script type="module" src="./src/list-delete.js?v=0.15.0"></script>
   </body>
 </html>
