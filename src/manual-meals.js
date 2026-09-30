@@ -40,36 +40,6 @@ export function getManualMealGroups(menuData, dayPlan) {
     .filter((category) => category.meals.length > 0);
 }
 
-export function filterManualMealGroups(groups, query) {
-  const source = Array.isArray(groups) ? groups : [];
-  const normalizedQuery = typeof query === "string" ? query.trim().toLocaleLowerCase() : "";
-
-  if (!normalizedQuery) {
-    return source.map((group) => ({ ...group, meals: [...group.meals] }));
-  }
-
-  return source
-    .map((group) => {
-      const categoryMatches = String(group.name ?? "").toLocaleLowerCase().includes(normalizedQuery);
-      const meals = categoryMatches
-        ? [...group.meals]
-        : group.meals.filter((meal) => {
-          const searchableText = [
-            meal.mealName,
-            meal.categoryName,
-            meal.description,
-          ]
-            .filter((value) => typeof value === "string")
-            .join(" ")
-            .toLocaleLowerCase();
-          return searchableText.includes(normalizedQuery);
-        });
-
-      return { ...group, meals };
-    })
-    .filter((group) => group.meals.length > 0);
-}
-
 export function replaceScheduledMeal(state, candidateIdValue, replacementMeal) {
   if (
     state?.mode !== "scheduled" ||
