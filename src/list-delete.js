@@ -71,10 +71,11 @@ function refreshDeleteControls() {
   }
 }
 
-async function deleteSnapshotDocuments(listId, categorySnapshot, mealSnapshot) {
+async function deleteSnapshotDocuments(listId, categorySnapshot, mealSnapshot, historySnapshot) {
   const deletes = [
     ...categorySnapshot.docs.map((item) => ({ subcollection: "categories", id: item.id })),
     ...mealSnapshot.docs.map((item) => ({ subcollection: "meals", id: item.id })),
+    ...historySnapshot.docs.map((item) => ({ subcollection: "history", id: item.id })),
     { subcollection: "planner", id: "current" },
   ];
 
@@ -138,13 +139,14 @@ deleteListForm.addEventListener("submit", async (event) => {
 
   try {
     setListStatus(`Checking ${selected.name} before deletion…`);
-    const [categorySnapshot, mealSnapshot] = await Promise.all([
+    const [categorySnapshot, mealSnapshot, historySnapshot] = await Promise.all([
       getDocs(collection(db, "lists", selected.id, "categories")),
       getDocs(collection(db, "lists", selected.id, "meals")),
+      getDocs(collection(db, "lists", selected.id, "history")),
     ]);
 
     const confirmed = window.confirm(
-      `Permanently delete “${selected.name}” with ${categorySnapshot.size} categories and ${mealSnapshot.size} meals? This also removes its shared household plan, access for every shared editor, and cannot be undone.`,
+      `Permanently delete “${selected.name}” with ${categorySnapshot.size} categories, ${mealSnapshot.size} meals, and ${historySnapshot.size} archived weeks? This also removes its shared household plan, access for every shared editor, and cannot be undone.`,
     );
 
     if (!confirmed) {
@@ -153,7 +155,7 @@ deleteListForm.addEventListener("submit", async (event) => {
     }
 
     setListStatus(`Deleting ${selected.name}…`);
-    await deleteSnapshotDocuments(selected.id, categorySnapshot, mealSnapshot);
+    await deleteSnapshotDocuments(selected.id, categorySnapshot, mealSnapshot, historySnapshot);
 
     // Delete the parent last. Firestore does not cascade subcollection deletes,
     // and the child-write rules depend on the parent list still existing.
