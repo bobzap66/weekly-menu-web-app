@@ -3,26 +3,16 @@
 }
 
 .admin-hero {
-  max-width: 46rem;
-}
-
-.admin-nav {
-  margin: 1rem 0 0;
-}
-
-.admin-nav a,
-.recipe-link {
-  color: #7f3c1d;
-  font-weight: 750;
+  max-width: 48rem;
 }
 
 .admin-card {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .admin-section-heading,
 .account-row {
-  padding: 1.5rem;
+  padding: 1.35rem 1.5rem;
 }
 
 .admin-section-heading {
@@ -30,7 +20,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid rgb(74 63 45 / 10%);
+  border-bottom: 1px solid var(--line);
 }
 
 .admin-form {
@@ -98,11 +88,12 @@
 .filter-field select,
 .category-edit-panel input {
   width: 100%;
-  border: 1px solid rgb(74 63 45 / 20%);
+  min-height: 2.85rem;
+  border: 1px solid var(--line-strong);
   border-radius: 0.7rem;
   padding: 0.72rem 0.78rem;
-  color: #222019;
-  background: #fffdf8;
+  color: var(--ink);
+  background: var(--paper);
   font: inherit;
 }
 
@@ -115,6 +106,7 @@
 }
 
 .admin-form textarea {
+  min-height: 6rem;
   resize: vertical;
 }
 
@@ -168,6 +160,10 @@
   gap: 1rem;
 }
 
+.account-card {
+  background: rgb(255 253 248 / 82%);
+}
+
 .account-email {
   margin: 0.2rem 0;
   font-family: Georgia, "Times New Roman", serif;
@@ -176,7 +172,7 @@
 
 .uid-line {
   margin: 0;
-  color: #716b60;
+  color: var(--muted);
   font-size: 0.82rem;
   overflow-wrap: anywhere;
 }
@@ -208,8 +204,8 @@
   align-items: end;
   gap: 0.8rem;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgb(74 63 45 / 10%);
-  background: #faf6ef;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-soft);
 }
 
 .category-edit-panel[hidden],
@@ -248,9 +244,15 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgb(74 63 45 / 10%);
+  gap: 1.25rem;
+  padding: 1.15rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.admin-meal-card:hover {
+  background: rgb(244 229 212 / 22%);
 }
 
 .admin-meal-card:last-child {
@@ -258,7 +260,7 @@
 }
 
 .admin-meal-card.is-inactive {
-  background: rgb(112 100 83 / 8%);
+  background: rgb(112 100 83 / 7%);
 }
 
 .admin-meal-main {
@@ -266,28 +268,37 @@
 }
 
 .admin-meal-main h3 {
-  margin: 0 0 0.45rem;
+  margin: 0 0 0.5rem;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.08rem;
+  font-size: 1.22rem;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .admin-meal-description {
-  margin: 0.55rem 0 0;
+  max-width: 46rem;
+  margin: 0.6rem 0 0;
   color: #655e52;
-  line-height: 1.45;
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 .recipe-link {
   display: inline-block;
-  margin-top: 0.55rem;
+  margin-top: 0.6rem;
+  color: var(--accent-dark);
   font-size: 0.84rem;
+  font-weight: 750;
 }
 
 .admin-meal-actions {
   display: flex;
   flex: 0 0 auto;
   gap: 0.45rem;
+}
+
+.admin-meal-actions .action-button {
+  border-radius: 0.65rem;
 }
 
 .compact-button {
@@ -308,10 +319,10 @@
 .weight-label {
   display: inline-block;
   border-radius: 999px;
-  padding: 0.22rem 0.5rem;
-  font-size: 0.72rem;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.66rem;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -321,8 +332,8 @@
 }
 
 .weight-label {
-  color: #5d564b;
-  background: #eee7da;
+  color: #817a70;
+  background: #f1ede5;
 }
 
 .sr-only {
@@ -370,11 +381,12 @@
 
 .auth-form input {
   width: 100%;
-  border: 1px solid rgb(74 63 45 / 20%);
+  min-height: 2.85rem;
+  border: 1px solid var(--line-strong);
   border-radius: 0.7rem;
   padding: 0.72rem 0.78rem;
-  color: #222019;
-  background: #fffdf8;
+  color: var(--ink);
+  background: var(--paper);
   font: inherit;
 }
 
@@ -388,7 +400,7 @@
 
 .auth-note {
   margin: 0;
-  color: #716b60;
+  color: var(--muted);
   font-size: 0.84rem;
   line-height: 1.45;
 }
@@ -396,7 +408,7 @@
 .text-action-button {
   border: 0;
   padding: 0.35rem 0;
-  color: #7f3c1d;
+  color: var(--accent-dark);
   background: transparent;
   font: inherit;
   font-size: 0.88rem;
@@ -423,7 +435,7 @@
 }
 
 .admin-disclosure {
-  border-top: 1px solid rgb(74 63 45 / 10%);
+  border-top: 1px solid var(--line);
 }
 
 .admin-disclosure > summary,
@@ -454,7 +466,7 @@
 
 .admin-disclosure > summary:focus-visible,
 .admin-card-details > summary:focus-visible {
-  outline: 3px solid #e7a35f;
+  outline: 3px solid var(--focus);
   outline-offset: -3px;
 }
 
@@ -463,7 +475,7 @@
   flex: 0 0 auto;
   margin-left: 0.15rem;
   content: "+";
-  color: #9b4c26;
+  color: var(--accent);
   font-size: 1.3rem;
   font-weight: 700;
   line-height: 1;
@@ -480,7 +492,7 @@
 
 .disclosure-note {
   margin-left: auto;
-  color: #716b60;
+  color: var(--muted);
   font-size: 0.8rem;
   font-weight: 650;
 }
@@ -498,7 +510,7 @@
 }
 
 .admin-card-details[open] > .collapsible-heading {
-  border-bottom: 1px solid rgb(74 63 45 / 10%);
+  border-bottom: 1px solid var(--line);
 }
 
 .admin-card-details > .collapsible-heading .disclosure-note {
@@ -506,6 +518,10 @@
 }
 
 @media (max-width: 720px) {
+  .admin-shell {
+    width: min(100% - 1rem, 68rem);
+  }
+
   .compact-form,
   .admin-form,
   .category-edit-panel,
