@@ -41,7 +41,7 @@ export function filterMealChooserModel(model, query, selectedValue = "") {
 
 function readSelectModel(select) {
   return [...select.children].map((child) => {
-    if (child instanceof HTMLOptGroupElement) {
+    if (child.tagName === "OPTGROUP") {
       return {
         type: "group",
         label: child.label,
