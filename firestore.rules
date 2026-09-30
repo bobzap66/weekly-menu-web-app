@@ -6,9 +6,17 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/lists/$(listId)).data.ownerUid == request.auth.uid;
     }
 
+    function verifiedEmailEditsListData(listData) {
+      return request.auth != null
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.get('email', '').lower() in listData.get('editorEmails', []);
+    }
+
     function editsList(listId) {
       return request.auth != null
-        && request.auth.uid in get(/databases/$(database)/documents/lists/$(listId)).data.get('editorUids', []);
+        && verifiedEmailEditsListData(
+          get(/databases/$(database)/documents/lists/$(listId)).data
+        );
     }
 
     function canEditList(listId) {
@@ -21,23 +29,23 @@ service cloud.firestore {
     }
 
     match /lists/{listId} {
-      // Owners and explicit editors can read list metadata. Public-read lists expose
-      // only their nested catalog to signed-out users, not owner/editor metadata.
+      // Owners and verified email editors can read list metadata. Public-read lists
+      // expose only their nested catalog to signed-out users, not sharing metadata.
       allow read: if request.auth != null
         && (
           resource.data.ownerUid == request.auth.uid
-          || request.auth.uid in resource.data.get('editorUids', [])
+          || verifiedEmailEditsListData(resource.data)
         );
 
       allow create: if request.auth != null
         && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.get('editorUids', []) is list;
+        && request.resource.data.get('editorEmails', []) is list;
 
       // Ownership, sharing, visibility, and other list metadata stay owner-controlled.
       allow update: if request.auth != null
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.ownerUid == resource.data.ownerUid
-        && request.resource.data.get('editorUids', []) is list;
+        && request.resource.data.get('editorEmails', []) is list;
 
       // The default Family Dinners document is the public signed-out fallback,
       // so protect the parent list from accidental deletion even by its owner.
