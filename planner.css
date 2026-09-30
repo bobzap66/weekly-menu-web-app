@@ -102,6 +102,44 @@
   background: #eee7da;
 }
 
+.manual-meal-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: min(22rem, 100%);
+}
+
+.manual-meal-label {
+  flex: 0 0 auto;
+  color: #655e52;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.manual-meal-select {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid rgb(74 63 45 / 20%);
+  border-radius: 0.65rem;
+  padding: 0.55rem 2rem 0.55rem 0.7rem;
+  color: #4e463b;
+  background: #fffdf8;
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.manual-meal-select:focus-visible {
+  outline: 3px solid #e7a35f;
+  outline-offset: 3px;
+}
+
+.manual-meal-select:disabled {
+  color: #847d72;
+  background: #f4f0e8;
+}
+
 @media (max-width: 640px) {
   .day-plan-controls {
     align-items: stretch;
@@ -124,6 +162,18 @@
 
   .schedule-day-badges {
     justify-content: flex-start;
+  }
+
+  .manual-meal-control {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    gap: 0.3rem;
+  }
+
+  .manual-meal-select {
+    width: 100%;
   }
 }
 
