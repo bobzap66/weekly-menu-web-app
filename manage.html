@@ -6,7 +6,7 @@
     <meta name="description" content="Sign in or create an account to manage Weekly Menu meal lists." />
     <title>Manage Meals — Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./manage.css?v=0.14.0" />
+    <link rel="stylesheet" href="./manage.css?v=0.18.0" />
     <link rel="stylesheet" href="./sharing.css?v=0.14.1" />
   </head>
   <body>
@@ -109,17 +109,24 @@
           <div class="admin-section-heading">
             <div>
               <p class="step-label">Meal lists</p>
-              <h2 id="lists-heading">Choose, create, duplicate, or delete a list</h2>
+              <h2 id="lists-heading">Choose a list</h2>
             </div>
           </div>
-          <div class="list-management-grid">
+          <div class="list-selector-row">
             <label class="list-select-field">
               <span>Available lists</span>
               <select id="list-select">
                 <option value="">Loading lists…</option>
               </select>
             </label>
-            <div class="list-actions-stack">
+          </div>
+
+          <details class="admin-disclosure list-tools-disclosure">
+            <summary>
+              <span class="disclosure-title">List tools</span>
+              <span class="disclosure-note">Create, duplicate, or delete a list</span>
+            </summary>
+            <div class="disclosure-body list-actions-stack">
               <form id="create-list-form" class="create-list-form">
                 <label>
                   <span>New empty list</span>
@@ -143,7 +150,8 @@
                 <p id="delete-list-help" class="delete-list-help">Choose a list before deleting.</p>
               </form>
             </div>
-          </div>
+          </details>
+
           <p class="admin-help">Lists marked “(shared)” belong to another account but give you editor access to their categories, meals, and household weekly plan. Duplicating any available list creates a new private copy that you own; the copied list starts with its own separate weekly plan. Only an owner can delete a list, and Family Dinners remains protected because it is the public catalog used by the signed-out planner.</p>
           <p id="list-status" class="admin-status" aria-live="polite"></p>
         </section>
@@ -175,25 +183,28 @@
           <p id="sharing-status" class="admin-status" aria-live="polite"></p>
         </section>
 
-        <section class="menu-card admin-card" aria-labelledby="category-heading" data-list-required>
-          <div class="admin-section-heading">
-            <div>
-              <p class="step-label">Categories</p>
-              <h2 id="category-heading">Add a category</h2>
-            </div>
-          </div>
-          <form id="category-form" class="admin-form compact-form">
-            <label>
-              <span>Category name</span>
-              <input id="category-name" type="text" maxlength="80" required />
-            </label>
-            <label>
-              <span>Weight</span>
-              <input id="category-weight" type="number" min="0.01" step="0.01" value="1" required />
-            </label>
-            <button class="action-button primary-button" type="submit">Add category</button>
-          </form>
-          <p id="category-status" class="admin-status" aria-live="polite"></p>
+        <section class="menu-card admin-card collapsible-card" data-list-required>
+          <details class="admin-card-details">
+            <summary class="admin-section-heading collapsible-heading">
+              <div>
+                <p class="step-label">Categories</p>
+                <h2 id="category-heading">Add a category</h2>
+              </div>
+              <span class="disclosure-note">Create a new meal category</span>
+            </summary>
+            <form id="category-form" class="admin-form compact-form">
+              <label>
+                <span>Category name</span>
+                <input id="category-name" type="text" maxlength="80" required />
+              </label>
+              <label>
+                <span>Weight</span>
+                <input id="category-weight" type="number" min="0.01" step="0.01" value="1" required />
+              </label>
+              <button class="action-button primary-button" type="submit">Add category</button>
+            </form>
+            <p id="category-status" class="admin-status" aria-live="polite"></p>
+          </details>
         </section>
 
         <section class="menu-card admin-card" aria-labelledby="editor-heading" data-list-required>
