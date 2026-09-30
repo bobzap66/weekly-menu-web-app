@@ -2,7 +2,7 @@
 
 A static GitHub Pages dinner planner with Firebase-backed meal lists and household planning.
 
-## Version 0.16.0 behavior
+## Version 0.17.0 behavior
 
 - Keeps the application on GitHub Pages with no custom application server and no Cloud Functions.
 - Runs on the Firebase Spark plan using browser-side Firebase Authentication and Cloud Firestore.
@@ -12,7 +12,8 @@ A static GitHub Pages dinner planner with Firebase-backed meal lists and househo
 - Lets list owners share a list with verified household editors by email address.
 - Shared editors can add, edit, disable, and delete categories and meals, but cannot change sharing, ownership, or delete the parent list.
 - Shares the active weekly planner state between a list owner and its verified household editors.
-- Syncs week setup, generated candidates, scheduled dinners, manual meal replacements, carryovers, meal recency history, and the **Nothing new** preference through Firestore.
+- Syncs week setup, pinned meals, generated candidates, scheduled dinners, manual meal replacements, carryovers, meal recency history, and the **Nothing new** preference through Firestore.
+- Lets a dinner day be pinned to an exact saved meal before generation, then generates only the remaining dinner choices around those fixed meals.
 - Lets any scheduled dinner be replaced manually with an exact saved meal from the active list while preserving Quick and Big Meal / Guests requirements.
 - Keeps browser-local planner storage as a cache and fallback if cloud planner access is unavailable.
 - Keeps signed-out planning browser-local even for the public **Family Dinners** catalog; the household planner itself is never public.
@@ -21,7 +22,7 @@ A static GitHub Pages dinner planner with Firebase-backed meal lists and househo
 - Supports **Edit week setup**, **Change choices**, carryovers, printing, and the week-level **Nothing new** option.
 - Deploys Firestore Security Rules automatically from GitHub Actions when the checked-in rules change.
 
-Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently require **Quick** and **Big Meal / Guests**; a day with both checked must receive a meal carrying both tags.
+Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently require **Quick** and **Big Meal / Guests**; a day with both checked must receive a meal carrying both tags. During week setup, a Dinner day can also be fixed to a specific saved meal. The manual meal picker is filtered so an incompatible meal cannot be pinned to a Quick or Big Meal / Guests requirement.
 
 ## Firebase architecture
 
@@ -98,6 +99,7 @@ The shared document contains the complete planner state needed to continue the s
 
 - current week setup and day types;
 - Quick and Big Meal / Guests requirements;
+- meals pinned to specific days before generation;
 - generated meal candidates and removals;
 - final scheduled week, manual day assignments, and manually selected meals;
 - carryovers into the next week;
@@ -110,7 +112,7 @@ After startup, the planner subscribes to the Firestore document. Changes made by
 
 Signed-out users never read or write the cloud household planner. They use the public Family Dinners catalog with browser-local planner state only. This keeps weekly household information private even though the default meal catalog is public.
 
-Version 0.16 uses whole-document synchronization. If two household members make conflicting planner changes at nearly the same time, the most recently completed write wins. More granular conflict resolution can be added later if simultaneous editing becomes common.
+Version 0.17 uses whole-document synchronization. If two household members make conflicting planner changes at nearly the same time, the most recently completed write wins. More granular conflict resolution can be added later if simultaneous editing becomes common.
 
 ## Active-list and local cache behavior
 
@@ -128,7 +130,7 @@ weekly-menu:list:{listId}:nothing-new
 
 For signed-in accessible lists, Firestore is the shared source of truth and these keys are the local cache/fallback. For signed-out planning, the local keys remain the only planner persistence.
 
-Planner state schema version 7 requires stable meal IDs. Generated meals and carryovers use `stableId` directly. Candidate `id` values remain temporary UI-instance identifiers used only for selecting, rejecting, and assigning candidates in a particular generated week.
+Planner state schema version 7 requires stable meal IDs. Version 0.17 adds optional pinned-meal data without changing the schema version, so valid existing version-7 plans remain readable. Generated meals, pinned meals, and carryovers use `stableId` directly. Candidate `id` values remain temporary UI-instance identifiers used only for selecting, rejecting, and assigning candidates in a particular generated week.
 
 ## List duplication and deletion
 
@@ -178,9 +180,13 @@ The week setup screen includes **Nothing new**. When checked, both New Recipe an
 
 The planner always covers Monday through Sunday. Non-dinner days reduce the number of generated dinners. Dinner days may have no tag requirement, Quick only, Big Meal / Guests only, or both.
 
-The generator reserves enough qualifying candidates to make the planned week possible. Carryovers remain automatic candidates unless explicitly removed, and their stable ID, Quick/Big tags, descriptions, and recipe links travel with them.
+During setup, every Dinner day has a **Set meal** picker. Leaving it on **Choose automatically** keeps that day in the normal weighted generator. Choosing a saved meal pins that exact meal to that exact day. The generator then treats the pin as already filled, preserves it through rerolls, and generates candidates only for the remaining open dinner days plus the usual extra choices. Pinned candidates cannot be removed during the candidate-cut step.
 
-Once the week is scheduled, each dinner day has a **Set meal** picker grouped by category. It can replace the generated dinner with any active saved meal that satisfies that day's Quick and Big Meal / Guests requirements. The replacement keeps the same scheduled day, is saved into the normal planner state, and therefore syncs to other signed-in household members. Replacing a dinner clears that slot's carryover marker because the carryover belongs to the previous meal.
+Quick and Big Meal / Guests requirements are applied before the setup picker is populated, so only compatible saved meals can be pinned. If a requirement is added after a meal was pinned and the meal no longer qualifies, the pin is cleared rather than leaving an impossible plan.
+
+Carryovers remain automatic candidates unless explicitly removed. If a pinned meal matches a pending carryover, that carryover is treated as the pinned dinner rather than appearing twice. If every Dinner day is pinned, unmatched carryovers are deferred to the following week rather than discarded.
+
+Once the week is scheduled, each dinner day still has a **Set meal** picker grouped by category. It can replace the generated dinner with any active saved meal that satisfies that day's Quick and Big Meal / Guests requirements. The replacement keeps the same scheduled day, is saved into the normal planner state, and therefore syncs to other signed-in household members. Replacing a dinner clears that slot's carryover marker because the carryover belongs to the previous meal. If the scheduled slot was originally pinned during setup, the replacement becomes the remembered pin if the user later returns to **Edit week setup**.
 
 The **Print week** feature remains available for scheduled weeks.
 
