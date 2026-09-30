@@ -72,7 +72,7 @@ test("carries uneaten meals into a variable candidate pool", () => {
 
   assert.equal(suggestions.length, 8);
   assert.equal(suggestions[0].stableId, "meal-tacos");
-  assert.equal(suggestions[0].mealKey, "meal-tacos");
+  assert.equal("mealKey" in suggestions[0], false);
   assert.equal(suggestions[0].mealName, "Tacos");
   assert.equal(suggestions[0].description, "Taco night");
   assert.equal(suggestions[1].mealName, "Ribs");
