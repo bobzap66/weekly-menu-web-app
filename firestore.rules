@@ -62,6 +62,13 @@ service cloud.firestore {
         allow read: if canReadList(listId);
         allow create, update, delete: if canEditList(listId);
       }
+
+      // The weekly household plan is private even when the meal catalog is public.
+      // Owners and verified editors share one current state/history document.
+      match /planner/{plannerId} {
+        allow read, create, update: if plannerId == "current" && canEditList(listId);
+        allow delete: if plannerId == "current" && ownsList(listId);
+      }
     }
 
     // Legacy top-level categories/meals remain in Firestore as an inert backup.
