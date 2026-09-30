@@ -12,7 +12,7 @@ const listSelect = document.querySelector("#list-select");
 const sharingOwnerControls = document.querySelector("#sharing-owner-controls");
 const sharingReadonlyNote = document.querySelector("#sharing-readonly-note");
 const shareListForm = document.querySelector("#share-list-form");
-const shareEditorUid = document.querySelector("#share-editor-uid");
+const shareEditorEmail = document.querySelector("#share-editor-email");
 const sharedEditorList = document.querySelector("#shared-editor-list");
 const sharingSummary = document.querySelector("#sharing-summary");
 const sharingStatus = document.querySelector("#sharing-status");
@@ -22,10 +22,16 @@ function setStatus(message, isError = false) {
   sharingStatus.classList.toggle("is-error", isError);
 }
 
+function normalizeEmail(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 function parseEditors(value) {
   try {
     const parsed = JSON.parse(value || "[]");
-    return Array.isArray(parsed) ? parsed.filter((uid) => typeof uid === "string" && uid.length > 0) : [];
+    return Array.isArray(parsed)
+      ? parsed.map(normalizeEmail).filter(Boolean)
+      : [];
   } catch {
     return [];
   }
@@ -39,36 +45,36 @@ function selectedList() {
     id: listSelect.value,
     name: option.dataset.listName || option.textContent.trim(),
     ownerUid: option.dataset.ownerUid || "",
-    editorUids: parseEditors(option.dataset.editorUids),
+    editorEmails: parseEditors(option.dataset.editorEmails),
     option,
   };
 }
 
-function updateSelectedEditorData(editorUids) {
+function updateSelectedEditorData(editorEmails) {
   const selected = selectedList();
   if (!selected) return;
-  selected.option.dataset.editorUids = JSON.stringify(editorUids);
+  selected.option.dataset.editorEmails = JSON.stringify(editorEmails);
 }
 
-function createEditorRow(uid, list) {
+function createEditorRow(email, list) {
   const row = document.createElement("div");
   const code = document.createElement("code");
   const removeButton = document.createElement("button");
 
   row.className = "shared-editor-row";
   code.className = "shared-editor-uid";
-  code.textContent = uid;
+  code.textContent = email;
   removeButton.className = "action-button secondary-button compact-button danger-button";
   removeButton.type = "button";
   removeButton.textContent = "Remove";
   removeButton.addEventListener("click", async () => {
-    if (!window.confirm(`Remove editor access for ${uid} from “${list.name}”?`)) return;
+    if (!window.confirm(`Remove editor access for ${email} from “${list.name}”?`)) return;
 
     removeButton.disabled = true;
     setStatus("Removing editor access…");
     try {
-      await updateDoc(doc(db, "lists", list.id), { editorUids: arrayRemove(uid) });
-      updateSelectedEditorData(list.editorUids.filter((editorUid) => editorUid !== uid));
+      await updateDoc(doc(db, "lists", list.id), { editorEmails: arrayRemove(email) });
+      updateSelectedEditorData(list.editorEmails.filter((editorEmail) => editorEmail !== email));
       setStatus("Editor access removed.");
       renderSharing();
     } catch (error) {
@@ -99,16 +105,16 @@ function renderSharing() {
   sharingReadonlyNote.hidden = isOwner;
 
   if (!isOwner) {
-    sharingReadonlyNote.textContent = `“${list.name}” is shared with you as an editor. You can edit its categories and meals, but only its owner can add or remove editors.`;
+    sharingReadonlyNote.textContent = `“${list.name}” is shared with your verified email address. You can edit its categories and meals, but only its owner can add or remove editors.`;
     sharingSummary.textContent = "Editor access is controlled by the list owner.";
     return;
   }
 
-  sharingSummary.textContent = list.editorUids.length === 0
+  sharingSummary.textContent = list.editorEmails.length === 0
     ? `${list.name} is not shared with any editors.`
-    : `${list.name} has ${list.editorUids.length} ${list.editorUids.length === 1 ? "editor" : "editors"}.`;
+    : `${list.name} has ${list.editorEmails.length} ${list.editorEmails.length === 1 ? "editor" : "editors"}.`;
 
-  if (list.editorUids.length === 0) {
+  if (list.editorEmails.length === 0) {
     const empty = document.createElement("p");
     empty.className = "sharing-empty";
     empty.textContent = "No editors added yet.";
@@ -116,8 +122,8 @@ function renderSharing() {
     return;
   }
 
-  for (const uid of list.editorUids) {
-    sharedEditorList.append(createEditorRow(uid, list));
+  for (const email of list.editorEmails) {
+    sharedEditorList.append(createEditorRow(email, list));
   }
 }
 
@@ -125,7 +131,7 @@ shareListForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const user = auth.currentUser;
   const list = selectedList();
-  const uid = shareEditorUid.value.trim();
+  const email = normalizeEmail(shareEditorEmail.value);
 
   if (!user || !list) {
     setStatus("Choose a list first.", true);
@@ -135,16 +141,16 @@ shareListForm.addEventListener("submit", async (event) => {
     setStatus("Only the list owner can add editors.", true);
     return;
   }
-  if (!uid) {
-    setStatus("Paste the other account's UID.", true);
+  if (!email || !shareEditorEmail.validity.valid) {
+    setStatus("Enter a valid email address.", true);
     return;
   }
-  if (uid === user.uid) {
+  if (email === normalizeEmail(user.email)) {
     setStatus("You already own this list; you do not need editor access.", true);
     return;
   }
-  if (list.editorUids.includes(uid)) {
-    setStatus("That UID already has editor access.", true);
+  if (list.editorEmails.includes(email)) {
+    setStatus("That email already has editor access.", true);
     return;
   }
 
@@ -153,10 +159,10 @@ shareListForm.addEventListener("submit", async (event) => {
   setStatus("Adding editor…");
 
   try {
-    await updateDoc(doc(db, "lists", list.id), { editorUids: arrayUnion(uid) });
-    updateSelectedEditorData([...list.editorUids, uid]);
+    await updateDoc(doc(db, "lists", list.id), { editorEmails: arrayUnion(email) });
+    updateSelectedEditorData([...list.editorEmails, email]);
     shareListForm.reset();
-    setStatus("Editor added. That account will see this list the next time Manage Meals loads while signed in.");
+    setStatus(`Editor added for ${email}. Access becomes active when that person signs in with that email and verifies it.`);
     renderSharing();
   } catch (error) {
     console.error(error);
