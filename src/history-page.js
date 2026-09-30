@@ -137,6 +137,13 @@ function matchingWeeks() {
   );
 }
 
+function createTag(text, className) {
+  const tag = document.createElement("span");
+  tag.className = className;
+  tag.textContent = text;
+  return tag;
+}
+
 function createDayRow(dayName, day) {
   const item = document.createElement("li");
   const label = document.createElement("span");
@@ -154,21 +161,23 @@ function createDayRow(dayName, day) {
   }
 
   const mealName = document.createElement("span");
-  const meta = document.createElement("p");
-  const parts = [day.meal.categoryName].filter(Boolean);
-  if (day.meal.quick) parts.push("Quick");
-  if (day.meal.bigMeal) parts.push("Big Meal");
+  const meta = document.createElement("div");
 
   mealName.className = "history-meal-name";
   mealName.textContent = day.meal.mealName;
   meta.className = "history-meal-meta";
-  meta.textContent = parts.join(" · ");
 
+  if (day.meal.categoryName) {
+    meta.append(createTag(day.meal.categoryName, "category-name"));
+  }
+  if (day.meal.quick) {
+    meta.append(createTag("Quick", "quick-label"));
+  }
+  if (day.meal.bigMeal) {
+    meta.append(createTag("Big Meal", "big-meal-label"));
+  }
   if (day.meal.carriedOver) {
-    const carried = document.createElement("span");
-    carried.className = "history-carryover";
-    carried.textContent = "Carried over";
-    meta.append(carried);
+    meta.append(createTag("Carried over", "history-carryover"));
   }
 
   item.append(mealName, meta);
