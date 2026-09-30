@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Sign in to manage Weekly Menu meal lists." />
+    <meta name="description" content="Sign in or create an account to manage Weekly Menu meal lists." />
     <title>Manage Meals — Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./manage.css?v=0.11.0" />
+    <link rel="stylesheet" href="./manage.css?v=0.12.0" />
   </head>
   <body>
     <main class="app-shell admin-shell">
@@ -17,14 +17,19 @@
         <p class="admin-nav"><a href="./">← Back to weekly planner</a></p>
       </header>
 
-      <section id="login-panel" class="menu-card admin-card" aria-labelledby="login-heading">
-        <div class="admin-section-heading">
+      <section id="login-panel" class="menu-card admin-card auth-card" aria-labelledby="login-heading">
+        <div class="admin-section-heading auth-heading-row">
           <div>
             <p class="step-label">Account</p>
             <h2 id="login-heading">Sign in</h2>
           </div>
+          <div class="auth-mode-switch" role="group" aria-label="Account action">
+            <button id="show-login-button" class="action-button secondary-button auth-mode-button" type="button" aria-pressed="true">Sign in</button>
+            <button id="show-signup-button" class="action-button secondary-button auth-mode-button" type="button" aria-pressed="false">Create account</button>
+          </div>
         </div>
-        <form id="login-form" class="admin-form compact-form">
+
+        <form id="login-form" class="auth-form">
           <label>
             <span>Email</span>
             <input id="login-email" type="email" autocomplete="username" required />
@@ -33,9 +38,44 @@
             <span>Password</span>
             <input id="login-password" type="password" autocomplete="current-password" required />
           </label>
-          <button class="action-button primary-button" type="submit">Sign in</button>
+          <div class="auth-actions">
+            <button class="action-button primary-button" type="submit">Sign in</button>
+            <button id="show-reset-button" class="text-action-button" type="button">Forgot password?</button>
+          </div>
         </form>
-        <p id="login-status" class="admin-status" aria-live="polite"></p>
+
+        <form id="signup-form" class="auth-form" hidden>
+          <label class="wide-field">
+            <span>Email</span>
+            <input id="signup-email" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="signup-password" type="password" autocomplete="new-password" minlength="6" required />
+          </label>
+          <label>
+            <span>Confirm password</span>
+            <input id="signup-password-confirm" type="password" autocomplete="new-password" minlength="6" required />
+          </label>
+          <p class="auth-note wide-field">Creating an account signs you in immediately. Your meal lists are private unless a future sharing feature explicitly changes that.</p>
+          <div class="auth-actions wide-field">
+            <button class="action-button primary-button" type="submit">Create account</button>
+          </div>
+        </form>
+
+        <form id="reset-form" class="auth-form" hidden>
+          <label class="wide-field">
+            <span>Account email</span>
+            <input id="reset-email" type="email" autocomplete="email" required />
+          </label>
+          <p class="auth-note wide-field">Firebase will email a secure link that lets you choose a new password.</p>
+          <div class="auth-actions wide-field">
+            <button class="action-button primary-button" type="submit">Send reset link</button>
+            <button id="cancel-reset-button" class="action-button secondary-button" type="button">Back to sign in</button>
+          </div>
+        </form>
+
+        <p id="login-status" class="admin-status auth-status" aria-live="polite"></p>
       </section>
 
       <section id="admin-panel" hidden>
@@ -205,7 +245,8 @@
       </section>
     </main>
 
-    <script type="module" src="./src/manage-list.js?v=0.11.0"></script>
-    <script type="module" src="./src/list-delete.js?v=0.11.0"></script>
+    <script type="module" src="./src/auth-ui.js?v=0.12.0"></script>
+    <script type="module" src="./src/manage-list.js?v=0.12.0"></script>
+    <script type="module" src="./src/list-delete.js?v=0.12.0"></script>
   </body>
 </html>
