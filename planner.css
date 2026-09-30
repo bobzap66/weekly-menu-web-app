@@ -14,7 +14,7 @@
   align-items: flex-end;
   flex-direction: column;
   gap: 0.55rem;
-  min-width: min(22rem, 65%);
+  min-width: min(24rem, 68%);
 }
 
 .day-plan-controls .day-type-select {
@@ -109,6 +109,10 @@
   min-width: min(22rem, 100%);
 }
 
+.setup-manual-meal-control {
+  width: min(24rem, 100%);
+}
+
 .manual-meal-label {
   flex: 0 0 auto;
   color: #655e52;
@@ -138,6 +142,33 @@
 .manual-meal-select:disabled {
   color: #847d72;
   background: #f4f0e8;
+}
+
+.pinned-label {
+  display: inline-block;
+  margin-top: 0.7rem;
+  border-radius: 999px;
+  padding: 0.22rem 0.5rem;
+  color: #5a4677;
+  background: #e9e0f3;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.is-pinned {
+  background: rgb(233 224 243 / 34%);
+}
+
+.meal-choice:disabled {
+  color: inherit;
+  opacity: 1;
+  cursor: default;
+}
+
+.meal-choice:disabled:hover {
+  background: transparent;
 }
 
 @media (max-width: 640px) {
