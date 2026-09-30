@@ -1,0 +1,175 @@
+.history-shell {
+  width: min(100% - 2rem, 68rem);
+}
+
+.history-hero {
+  max-width: 46rem;
+}
+
+.history-nav {
+  margin: 1rem 0 0;
+}
+
+.history-nav a,
+.history-empty a {
+  color: #7f3c1d;
+  font-weight: 750;
+}
+
+.history-card {
+  overflow: hidden;
+}
+
+.history-toolbar {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) minmax(14rem, 1.2fr);
+  gap: 0.9rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.history-toolbar label {
+  display: grid;
+  gap: 0.4rem;
+  color: #655e52;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.history-toolbar select,
+.history-toolbar input {
+  width: 100%;
+  border: 1px solid rgb(74 63 45 / 20%);
+  border-radius: 0.7rem;
+  padding: 0.72rem 0.78rem;
+  color: #222019;
+  background: #fffdf8;
+  font: inherit;
+}
+
+.history-weeks {
+  display: grid;
+}
+
+.history-week-card {
+  padding: 1.3rem 1.5rem 1.4rem;
+  border-bottom: 1px solid rgb(74 63 45 / 10%);
+}
+
+.history-week-card:last-child {
+  border-bottom: 0;
+}
+
+.history-week-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.history-week-heading h2 {
+  font-size: 1.35rem;
+}
+
+.history-week-count {
+  margin: 0;
+  color: #716b60;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.history-day-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgb(74 63 45 / 10%);
+  border-radius: 0.8rem;
+  overflow: hidden;
+  list-style: none;
+}
+
+.history-day {
+  min-height: 4.5rem;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid rgb(74 63 45 / 10%);
+}
+
+.history-day:nth-child(odd) {
+  border-right: 1px solid rgb(74 63 45 / 10%);
+}
+
+.history-day:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.history-day-name {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #9b4c26;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.history-meal-name {
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.history-meal-meta,
+.history-nonmeal {
+  margin: 0.25rem 0 0;
+  color: #716b60;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.history-carryover {
+  display: inline-block;
+  margin-left: 0.35rem;
+  border-radius: 999px;
+  padding: 0.12rem 0.38rem;
+  color: #365330;
+  background: #e2ecdd;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.history-empty {
+  padding: 1.5rem;
+}
+
+.history-empty p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .history-toolbar,
+  .history-day-list {
+    grid-template-columns: 1fr;
+  }
+
+  .history-day,
+  .history-day:nth-child(odd),
+  .history-day:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid rgb(74 63 45 / 10%);
+  }
+
+  .history-day:last-child {
+    border-bottom: 0;
+  }
+
+  .history-week-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
