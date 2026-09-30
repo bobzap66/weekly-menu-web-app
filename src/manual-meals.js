@@ -54,16 +54,29 @@ export function replaceScheduledMeal(state, candidateIdValue, replacementMeal) {
   const dayPlan = assignedDay ? state.weekPlan?.[assignedDay] : null;
   if (!assignedDay || !mealMatchesDayPlan(replacementMeal, dayPlan)) return state;
 
-  const candidateExists = state.candidates.some((candidate) => candidate.id === candidateIdValue);
-  if (!candidateExists) return state;
+  const currentCandidate = state.candidates.find((candidate) => candidate.id === candidateIdValue);
+  if (!currentCandidate) return state;
+
+  const pinnedDay = typeof currentCandidate.pinnedDay === "string" ? currentCandidate.pinnedDay : null;
+  const replacement = {
+    ...replacementMeal,
+    id: currentCandidate.id,
+    ...(pinnedDay ? { pinnedDay } : {}),
+  };
+  const pinnedMeals = state.pinnedMeals && typeof state.pinnedMeals === "object"
+    ? { ...state.pinnedMeals }
+    : {};
+
+  if (pinnedDay) {
+    pinnedMeals[pinnedDay] = { ...replacementMeal };
+  }
 
   return {
     ...state,
     candidates: state.candidates.map((candidate) =>
-      candidate.id === candidateIdValue
-        ? { ...replacementMeal, id: candidate.id }
-        : candidate,
+      candidate.id === candidateIdValue ? replacement : candidate,
     ),
+    pinnedMeals,
     carryoverIds: state.carryoverIds.filter((id) => id !== candidateIdValue),
   };
 }
