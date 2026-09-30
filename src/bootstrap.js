@@ -1,11 +1,11 @@
-import { loadRemoteCatalog } from "./catalog.js?v=0.11.0";
+import { loadRemoteCatalog } from "./catalog.js?v=0.15.0";
 import { auth } from "./firebase.js";
 import {
   DEFAULT_LIST_ID,
   DEFAULT_LIST_NAME,
   getStoredActiveList,
   setStoredActiveList,
-} from "./list-config.js?v=0.11.0";
+} from "./list-config.js?v=0.15.0";
 
 const PER_LIST_STORAGE_RESET_KEY = "weekly-menu:per-list-storage:v1";
 
@@ -65,4 +65,4 @@ if (listSummary) {
   listSummary.hidden = false;
 }
 
-await import("./app.js?v=0.11.0");
+await import("./app.js?v=0.15.0");
