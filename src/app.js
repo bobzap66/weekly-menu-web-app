@@ -1,9 +1,9 @@
-import { menuData } from "./data.js?v=0.16.0";
+import { menuData } from "./data.js?v=0.17.0";
 import {
   addWeekToHistory,
   createHistory,
   isValidHistory,
-} from "./history.js?v=0.16.0";
+} from "./history.js?v=0.17.0";
 import {
   DAYS,
   DAY_TYPE_LABELS,
@@ -30,19 +30,20 @@ import {
   reopenWeekSetup,
   setDayRequirement,
   setDayType,
+  setPinnedMeal,
   toggleCarryover,
   toggleRejection,
-} from "./state.js?v=0.16.0";
-import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.16.0";
-import { getPlannerStorageKeys } from "./planner-storage.js?v=0.16.0";
+} from "./state.js?v=0.17.0";
+import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.17.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.17.0";
 import {
   CLOUD_PLANNER_SCHEMA_VERSION,
   canUseCloudPlanner,
   loadCloudPlanner,
   saveCloudPlanner,
   subscribeCloudPlanner,
-} from "./planner-sync.js?v=0.16.0";
-import { buildNextWeekSuggestions } from "./week.js?v=0.16.0";
+} from "./planner-sync.js?v=0.17.0";
+import { buildNextWeekSuggestions } from "./week.js?v=0.17.0";
 
 const activeListId = document.documentElement.dataset.activeListId;
 const activeListName = document.documentElement.dataset.activeListName || "Meal List";
@@ -203,6 +204,10 @@ function applyCloudPlanner(value) {
   return true;
 }
 
+function currentPinnedMeals() {
+  return state.pinnedMeals && typeof state.pinnedMeals === "object" ? state.pinnedMeals : {};
+}
+
 function currentCarryoverCandidates() {
   const rejected = new Set(state.rejectedIds);
   const marked = new Set(state.carryoverIds);
@@ -213,22 +218,35 @@ function currentCarryoverCandidates() {
 }
 
 function beginPlannedWeek() {
+  const pinnedMeals = currentPinnedMeals();
+  const mealCount = countMealDays(state.weekPlan);
+  const pinnedCount = Object.keys(pinnedMeals).length;
   const suggestions = buildNextWeekSuggestions(
     menuData,
     history,
     state.pendingCarryovers,
     state.weekPlan,
     Math.random,
-    { nothingNew },
+    { nothingNew, pinnedMeals },
   );
-  const deferredCarryovers = countMealDays(state.weekPlan) === 0 ? state.pendingCarryovers : [];
+  const pinnedStableIds = new Set(Object.values(pinnedMeals).map((meal) => meal.stableId));
+  const deferredCarryovers = mealCount === 0 || pinnedCount === mealCount
+    ? state.pendingCarryovers.filter((meal) => !pinnedStableIds.has(meal.stableId))
+    : [];
 
-  state = createMenuState(suggestions, state.weekPlan, state.createdAt, deferredCarryovers);
+  state = createMenuState(
+    suggestions,
+    state.weekPlan,
+    state.createdAt,
+    deferredCarryovers,
+    pinnedMeals,
+  );
   saveState();
   render();
 }
 
 function rerollIdeas() {
+  const pinnedMeals = currentPinnedMeals();
   const carryovers = currentCarryoverCandidates();
   const suggestions = buildNextWeekSuggestions(
     menuData,
@@ -236,10 +254,16 @@ function rerollIdeas() {
     carryovers,
     state.weekPlan,
     Math.random,
-    { nothingNew },
+    { nothingNew, pinnedMeals },
   );
 
-  state = createMenuState(suggestions, state.weekPlan, state.createdAt);
+  state = createMenuState(
+    suggestions,
+    state.weekPlan,
+    state.createdAt,
+    state.pendingCarryovers,
+    pinnedMeals,
+  );
   saveState();
   render();
 }
@@ -297,6 +321,10 @@ function createCarriedOverLabel() {
   return createTagLabel("Carried over", "carried-over-label");
 }
 
+function createPinnedLabel(day) {
+  return createTagLabel(`Pinned · ${day}`, "pinned-label");
+}
+
 function createDayTypeSelect(day) {
   const select = document.createElement("select");
   select.className = "day-type-select";
@@ -340,6 +368,72 @@ function createRequirementCheckbox(day, requirement, labelText) {
   return label;
 }
 
+function createSetupMealSelect(day) {
+  const label = document.createElement("label");
+  const labelText = document.createElement("span");
+  const select = document.createElement("select");
+  const groups = getManualMealGroups(menuData, state.weekPlan[day]);
+  const mealsByStableId = new Map();
+  const pinnedMeal = currentPinnedMeals()[day] ?? null;
+  let pinnedMealFound = false;
+
+  label.className = "manual-meal-control setup-manual-meal-control";
+  labelText.className = "manual-meal-label";
+  labelText.textContent = "Set meal";
+  select.className = "manual-meal-select";
+  select.setAttribute("aria-label", `Set meal for ${day} before generation`);
+
+  const automaticOption = document.createElement("option");
+  automaticOption.value = "";
+  automaticOption.textContent = "Choose automatically";
+  automaticOption.selected = !pinnedMeal;
+  select.append(automaticOption);
+
+  for (const group of groups) {
+    const optionGroup = document.createElement("optgroup");
+    optionGroup.label = group.name;
+
+    for (const savedMeal of group.meals) {
+      const option = document.createElement("option");
+      option.value = savedMeal.stableId;
+      option.textContent = savedMeal.mealName;
+      option.selected = pinnedMeal?.stableId === savedMeal.stableId;
+      if (option.selected) pinnedMealFound = true;
+      mealsByStableId.set(savedMeal.stableId, savedMeal);
+      optionGroup.append(option);
+    }
+
+    select.append(optionGroup);
+  }
+
+  if (pinnedMeal && !pinnedMealFound) {
+    const currentGroup = document.createElement("optgroup");
+    const currentOption = document.createElement("option");
+    currentGroup.label = "Current selection";
+    currentOption.value = pinnedMeal.stableId;
+    currentOption.textContent = pinnedMeal.mealName;
+    currentOption.selected = true;
+    mealsByStableId.set(pinnedMeal.stableId, pinnedMeal);
+    currentGroup.append(currentOption);
+    select.append(currentGroup);
+  }
+
+  if (groups.length === 0 && !pinnedMeal) {
+    automaticOption.textContent = "No qualifying saved meals";
+    select.disabled = true;
+  }
+
+  select.addEventListener("change", () => {
+    const meal = select.value ? mealsByStableId.get(select.value) : null;
+    state = setPinnedMeal(state, day, meal ?? null);
+    saveState();
+    render();
+  });
+
+  label.append(labelText, select);
+  return label;
+}
+
 function createDayPlanControls(day) {
   const wrapper = document.createElement("div");
   wrapper.className = "day-plan-controls";
@@ -352,7 +446,7 @@ function createDayPlanControls(day) {
       createRequirementCheckbox(day, "quick", "Quick"),
       createRequirementCheckbox(day, "bigMeal", "Big Meal / Guests"),
     );
-    wrapper.append(requirements);
+    wrapper.append(requirements, createSetupMealSelect(day));
   }
 
   return wrapper;
@@ -396,6 +490,7 @@ function renderSetup() {
   const bigCount = countBigMealDays(state.weekPlan);
   const combinedCount = countCombinedMealDays(state.weekPlan);
   const carryoverCount = state.pendingCarryovers.length;
+  const pinnedCount = Object.keys(currentPinnedMeals()).length;
 
   stepLabel.textContent = "Plan the week";
   menuHeading.textContent = "What does each day need?";
@@ -407,11 +502,14 @@ function renderSetup() {
   const mealSummary = mealCount === 0
     ? "No cooked dinners are planned yet."
     : `${mealCount} ${plural(mealCount, "dinner")} planned${requirements.length > 0 ? `, including ${requirements.join(" and ")}` : ""}${combinedCount > 0 ? ` (${combinedCount} ${plural(combinedCount, "day")} need both)` : ""}.`;
+  const pinnedSummary = pinnedCount > 0
+    ? ` ${pinnedCount} ${plural(pinnedCount, "dinner")} ${pinnedCount === 1 ? "is" : "are"} fixed to a specific day.`
+    : "";
   const carryoverSummary = carryoverCount > 0
     ? ` ${carryoverCount} ${plural(carryoverCount, "carryover")} will be included automatically.`
     : "";
   const newIdeaSummary = nothingNew ? " New ideas are turned off for this week." : "";
-  selectionStatus.textContent = `${mealSummary}${carryoverSummary}${newIdeaSummary}`;
+  selectionStatus.textContent = `${mealSummary}${pinnedSummary}${carryoverSummary}${newIdeaSummary}`;
 
   menuList.className = "week-setup-list";
   fragment.append(createNothingNewControl());
@@ -428,7 +526,10 @@ function renderSetup() {
   }
 
   menuList.replaceChildren(fragment);
-  primaryButton.textContent = mealCount === 0 ? "Use this week structure" : "Generate dinner ideas";
+  if (mealCount === 0) primaryButton.textContent = "Use this week structure";
+  else if (pinnedCount === mealCount) primaryButton.textContent = "Use these meals";
+  else if (pinnedCount > 0) primaryButton.textContent = "Generate remaining dinner ideas";
+  else primaryButton.textContent = "Generate dinner ideas";
   secondaryButton.hidden = true;
   tertiaryButton.hidden = true;
 }
@@ -469,6 +570,7 @@ function renderCandidates() {
   const remaining = requiredRejections - rejectedCount;
   const requirementShortfall = getMealRequirementShortfall(state);
   const carryoverCount = currentCarryoverCandidates().length;
+  const pinnedCount = state.candidates.filter((candidate) => typeof candidate.pinnedDay === "string").length;
 
   stepLabel.textContent = "This week’s candidates";
   menuHeading.textContent = `Choose ${mealCount} ${plural(mealCount, "dinner")}`;
@@ -483,12 +585,15 @@ function renderCandidates() {
     const requirementSummary = requirements.length > 0
       ? ` The final menu needs ${requirements.join(" and ")}.`
       : "";
+    const pinnedSummary = pinnedCount > 0
+      ? ` ${pinnedCount} ${plural(pinnedCount, "meal")} pinned to ${pinnedCount === 1 ? "its" : "their"} day.`
+      : "";
     const carryoverSummary = carryoverCount > 0
       ? ` ${carryoverCount} ${plural(carryoverCount, "dinner")} carried over automatically.`
       : "";
     selectionStatus.textContent = remaining > 0
-      ? `Remove ${remaining} more ${plural(remaining, "meal")}.${requirementSummary}${carryoverSummary}`
-      : `Your selections are ready.${requirementSummary}${carryoverSummary}`;
+      ? `Remove ${remaining} more ${plural(remaining, "meal")}.${requirementSummary}${pinnedSummary}${carryoverSummary}`
+      : `Your selections are ready.${requirementSummary}${pinnedSummary}${carryoverSummary}`;
   }
 
   for (const candidate of state.candidates) {
@@ -496,18 +601,23 @@ function renderCandidates() {
     const choice = document.createElement("button");
     const isRejected = rejected.has(candidate.id);
     const isCarriedOver = candidate.carriedOver || state.carryoverIds.includes(candidate.id);
+    const isPinned = typeof candidate.pinnedDay === "string";
 
-    item.className = `menu-item${isRejected ? " is-rejected" : ""}${isCarriedOver ? " is-carried-over" : ""}`;
+    item.className = `menu-item${isRejected ? " is-rejected" : ""}${isCarriedOver ? " is-carried-over" : ""}${isPinned ? " is-pinned" : ""}`;
     choice.className = "meal-choice";
     choice.type = "button";
+    choice.disabled = isPinned;
     choice.setAttribute("aria-pressed", String(isRejected));
     choice.setAttribute(
       "aria-label",
-      `${isRejected ? "Restore" : "Remove"} ${candidate.mealName}, ${candidate.categoryName}`,
+      isPinned
+        ? `${candidate.mealName}, ${candidate.categoryName}, pinned to ${candidate.pinnedDay}`
+        : `${isRejected ? "Restore" : "Remove"} ${candidate.mealName}, ${candidate.categoryName}`,
     );
 
     choice.append(createMealContent(candidate));
 
+    if (isPinned) choice.append(createPinnedLabel(candidate.pinnedDay));
     if (isCarriedOver && !isRejected) choice.append(createCarriedOverLabel());
 
     if (isRejected) {
@@ -517,18 +627,20 @@ function renderCandidates() {
       choice.append(removedLabel);
     }
 
-    choice.addEventListener("click", () => {
-      state = toggleRejection(state, candidate.id);
-      saveState();
-      render();
-    });
+    if (!isPinned) {
+      choice.addEventListener("click", () => {
+        state = toggleRejection(state, candidate.id);
+        saveState();
+        render();
+      });
+    }
 
     item.append(choice);
     fragment.append(item);
   }
 
   menuList.replaceChildren(fragment);
-  primaryButton.textContent = carryoverCount > 0 ? "Reroll other ideas" : "Roll new ideas";
+  primaryButton.textContent = carryoverCount > 0 || pinnedCount > 0 ? "Reroll other ideas" : "Roll new ideas";
   secondaryButton.textContent = "Clear removals";
   secondaryButton.hidden = rejectedCount === 0;
   tertiaryButton.textContent = "Edit week setup";
