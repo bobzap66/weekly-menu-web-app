@@ -12,8 +12,8 @@ import {
   DEFAULT_LIST_ID,
   DEFAULT_LIST_NAME,
   setStoredActiveList,
-} from "./list-config.js?v=0.13.0";
-import { getPlannerStorageKeys } from "./planner-storage.js?v=0.11.0";
+} from "./list-config.js?v=0.15.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.15.0";
 
 const DELETE_BATCH_SIZE = 400;
 
@@ -75,6 +75,7 @@ async function deleteSnapshotDocuments(listId, categorySnapshot, mealSnapshot) {
   const deletes = [
     ...categorySnapshot.docs.map((item) => ({ subcollection: "categories", id: item.id })),
     ...mealSnapshot.docs.map((item) => ({ subcollection: "meals", id: item.id })),
+    { subcollection: "planner", id: "current" },
   ];
 
   for (let start = 0; start < deletes.length; start += DELETE_BATCH_SIZE) {
@@ -143,7 +144,7 @@ deleteListForm.addEventListener("submit", async (event) => {
     ]);
 
     const confirmed = window.confirm(
-      `Permanently delete “${selected.name}” with ${categorySnapshot.size} categories and ${mealSnapshot.size} meals? This also removes access for every shared editor and cannot be undone.`,
+      `Permanently delete “${selected.name}” with ${categorySnapshot.size} categories and ${mealSnapshot.size} meals? This also removes its shared household plan, access for every shared editor, and cannot be undone.`,
     );
 
     if (!confirmed) {
