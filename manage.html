@@ -6,8 +6,8 @@
     <meta name="description" content="Sign in or create an account to manage Weekly Menu meal lists." />
     <title>Manage Meals — Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./manage.css?v=0.13.0" />
-    <link rel="stylesheet" href="./sharing.css?v=0.13.0" />
+    <link rel="stylesheet" href="./manage.css?v=0.14.0" />
+    <link rel="stylesheet" href="./sharing.css?v=0.14.0" />
   </head>
   <body>
     <main class="app-shell admin-shell">
@@ -58,7 +58,7 @@
             <span>Confirm password</span>
             <input id="signup-password-confirm" type="password" autocomplete="new-password" minlength="6" required />
           </label>
-          <p class="auth-note wide-field">Creating an account signs you in immediately. Lists you create start private; a list owner can explicitly add other accounts as editors.</p>
+          <p class="auth-note wide-field">Creating an account signs you in immediately and sends a verification email. You can own lists right away, but your email must be verified before another household can share a list with you.</p>
           <div class="auth-actions wide-field">
             <button class="action-button primary-button" type="submit">Create account</button>
           </div>
@@ -85,15 +85,24 @@
             <div>
               <p class="step-label">Signed in</p>
               <p id="account-email" class="account-email"></p>
+              <p class="uid-line">Email status: <strong id="account-verification-label"></strong></p>
               <p class="uid-line">Active list: <strong id="active-list-name">None</strong></p>
-              <p class="uid-line">UID: <code id="account-uid"></code></p>
+              <p class="uid-line" hidden>UID: <code id="account-uid"></code></p>
             </div>
             <div class="action-row">
-              <button id="copy-uid-button" class="action-button secondary-button" type="button">Copy UID</button>
+              <button id="copy-uid-button" class="action-button secondary-button" type="button" hidden>Copy UID</button>
               <button id="sign-out-button" class="action-button secondary-button" type="button">Sign out</button>
             </div>
           </div>
-          <p class="admin-help">The list selected here is also the list the planner will use while this account is signed in on this browser. To receive editor access to someone else's list, copy your UID and send it to that list's owner.</p>
+          <div id="email-verification-panel" class="admin-help" hidden>
+            <p>Shared lists are tied to verified email addresses. Verify this account before another household can grant it editor access.</p>
+            <div class="action-row">
+              <button id="resend-verification-button" class="action-button secondary-button" type="button">Resend verification email</button>
+              <button id="refresh-verification-button" class="action-button secondary-button" type="button">I've verified</button>
+            </div>
+            <p id="verification-status" class="admin-status" aria-live="polite"></p>
+          </div>
+          <p class="admin-help">The list selected here is also the list the planner will use while this account is signed in on this browser. Household sharing now uses the account email address rather than a Firebase UID.</p>
         </section>
 
         <section class="menu-card admin-card" aria-labelledby="lists-heading">
@@ -150,12 +159,12 @@
             <div id="sharing-owner-controls">
               <form id="share-list-form" class="share-list-form">
                 <label>
-                  <span>Editor UID</span>
-                  <input id="share-editor-uid" type="text" maxlength="128" autocomplete="off" placeholder="Paste another account's UID" required />
+                  <span>Editor email</span>
+                  <input id="share-editor-email" type="email" maxlength="254" autocomplete="email" placeholder="person@example.com" required />
                 </label>
                 <button class="action-button primary-button" type="submit">Add editor</button>
               </form>
-              <p class="sharing-help">The other person can find their UID near the top of this page while signed into their own account. Editors can add, edit, and delete categories and meals, but cannot change sharing or delete the list.</p>
+              <p class="sharing-help">Enter the email address the other person uses for their Weekly Menu account. Their account must verify that email before the shared list will appear. The app does not send a separate invitation email yet.</p>
             </div>
             <p id="sharing-readonly-note" class="sharing-help" hidden></p>
             <div class="sharing-editor-block">
@@ -273,9 +282,9 @@
       </section>
     </main>
 
-    <script type="module" src="./src/auth-ui.js?v=0.13.0"></script>
-    <script type="module" src="./src/manage-list.js?v=0.13.0"></script>
-    <script type="module" src="./src/list-sharing.js?v=0.13.0"></script>
-    <script type="module" src="./src/list-delete.js?v=0.13.0"></script>
+    <script type="module" src="./src/auth-ui.js?v=0.14.0"></script>
+    <script type="module" src="./src/manage-list.js?v=0.14.0"></script>
+    <script type="module" src="./src/list-sharing.js?v=0.14.0"></script>
+    <script type="module" src="./src/list-delete.js?v=0.14.0"></script>
   </body>
 </html>
