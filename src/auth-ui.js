@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  onAuthStateChanged,
   sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
@@ -121,6 +122,10 @@ resetForm.addEventListener("submit", async (event) => {
       setStatus("Could not send the password-reset email. Try again.", true);
     }
   }
+});
+
+onAuthStateChanged(auth, (user) => {
+  if (!user) setMode("signin");
 });
 
 setMode("signin");
