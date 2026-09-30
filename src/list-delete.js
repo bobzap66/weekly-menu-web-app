@@ -12,7 +12,7 @@ import {
   DEFAULT_LIST_ID,
   DEFAULT_LIST_NAME,
   setStoredActiveList,
-} from "./list-config.js?v=0.11.0";
+} from "./list-config.js?v=0.13.0";
 import { getPlannerStorageKeys } from "./planner-storage.js?v=0.11.0";
 
 const DELETE_BATCH_SIZE = 400;
@@ -32,20 +32,28 @@ function setListStatus(message, isError = false) {
 function selectedList() {
   const option = listSelect.options[listSelect.selectedIndex];
   if (!option || !listSelect.value) return null;
-  return { id: listSelect.value, name: option.textContent.trim() };
+  return {
+    id: listSelect.value,
+    name: option.dataset.listName || option.textContent.trim(),
+    ownerUid: option.dataset.ownerUid || "",
+  };
 }
 
 function refreshDeleteControls() {
+  const user = auth.currentUser;
   const selected = selectedList();
   const protectedDefault = selected?.id === DEFAULT_LIST_ID;
-  const enabled = Boolean(selected) && !protectedDefault;
+  const ownedByUser = Boolean(user && selected && selected.ownerUid === user.uid);
+  const enabled = Boolean(selected) && ownedByUser && !protectedDefault;
 
   deleteListConfirm.disabled = !enabled;
   deleteListConfirm.placeholder = protectedDefault
     ? `${DEFAULT_LIST_NAME} cannot be deleted`
-    : selected
-      ? `Type ${selected.name}`
-      : "Choose a list first";
+    : selected && !ownedByUser
+      ? "Only the owner can delete this shared list"
+      : selected
+        ? `Type ${selected.name}`
+        : "Choose a list first";
 
   if (!enabled) deleteListConfirm.value = "";
 
@@ -54,6 +62,8 @@ function refreshDeleteControls() {
 
   if (protectedDefault) {
     deleteListHelp.textContent = `${DEFAULT_LIST_NAME} is protected because the signed-out planner uses it as the public default.`;
+  } else if (selected && !ownedByUser) {
+    deleteListHelp.textContent = `“${selected.name}” is shared with you. Only its owner can permanently delete the list.`;
   } else if (selected) {
     deleteListHelp.textContent = `Type “${selected.name}” exactly to enable permanent deletion.`;
   } else {
@@ -104,6 +114,12 @@ deleteListForm.addEventListener("submit", async (event) => {
     return;
   }
 
+  if (selected.ownerUid !== user.uid) {
+    setListStatus(`Only the owner can delete ${selected.name}.`, true);
+    refreshDeleteControls();
+    return;
+  }
+
   if (selected.id === DEFAULT_LIST_ID) {
     setListStatus(`${DEFAULT_LIST_NAME} is the protected public default and cannot be deleted.`, true);
     refreshDeleteControls();
@@ -127,7 +143,7 @@ deleteListForm.addEventListener("submit", async (event) => {
     ]);
 
     const confirmed = window.confirm(
-      `Permanently delete “${selected.name}” with ${categorySnapshot.size} categories and ${mealSnapshot.size} meals? This cannot be undone.`,
+      `Permanently delete “${selected.name}” with ${categorySnapshot.size} categories and ${mealSnapshot.size} meals? This also removes access for every shared editor and cannot be undone.`,
     );
 
     if (!confirmed) {
