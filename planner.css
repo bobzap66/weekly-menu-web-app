@@ -36,17 +36,26 @@
   border-radius: 999px;
   padding: 0.38rem 0.65rem;
   color: #5d564b;
-  background: #fffdf8;
+  background: var(--paper);
   font-size: 0.78rem;
   font-weight: 750;
   cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    transform 120ms ease;
+}
+
+.requirement-check:hover {
+  border-color: rgb(74 63 45 / 30%);
+  transform: translateY(-1px);
 }
 
 .requirement-check input {
   width: 1rem;
   height: 1rem;
   margin: 0;
-  accent-color: #9b4c26;
+  accent-color: var(--accent);
 }
 
 .requirement-check:has(input:checked) {
@@ -55,13 +64,13 @@
 }
 
 .requirement-quick:has(input:checked) {
-  color: #315777;
-  background: #dceaf5;
+  color: var(--quick-ink);
+  background: var(--quick-bg);
 }
 
 .requirement-bigMeal:has(input:checked) {
-  color: #75451f;
-  background: #f4dfc8;
+  color: var(--big-ink);
+  background: var(--big-bg);
 }
 
 .setup-week-option-item {
@@ -71,7 +80,7 @@
   gap: 1rem;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid rgb(74 63 45 / 12%);
-  background: #faf6ef;
+  background: var(--paper-soft);
 }
 
 .setup-week-option-text {
@@ -80,7 +89,7 @@
 }
 
 .setup-week-option-note {
-  color: #716b60;
+  color: var(--muted);
   font-size: 0.82rem;
   line-height: 1.35;
 }
@@ -92,7 +101,7 @@
 
 .schedule-day-badges {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: 0.4rem;
 }
@@ -143,11 +152,11 @@
 .manual-meal-select {
   width: 100%;
   min-width: 0;
-  border: 1px solid rgb(74 63 45 / 20%);
+  border: 1px solid var(--line-strong);
   border-radius: 0.65rem;
   padding: 0.55rem 0.7rem;
   color: #4e463b;
-  background: #fffdf8;
+  background: var(--paper);
   font-size: 0.86rem;
   font-weight: 750;
 }
@@ -160,12 +169,6 @@
 .manual-meal-search::placeholder {
   color: #8a8378;
   font-weight: 600;
-}
-
-.manual-meal-search:focus-visible,
-.manual-meal-select:focus-visible {
-  outline: 3px solid #e7a35f;
-  outline-offset: 3px;
 }
 
 .manual-meal-search:disabled,
@@ -221,10 +224,6 @@
     flex-direction: column;
   }
 
-  .schedule-day-badges {
-    justify-content: flex-start;
-  }
-
   .searchable-meal-control,
   .manual-meal-control {
     align-items: stretch;
@@ -270,6 +269,10 @@
     padding: 0;
   }
 
+  .app-nav {
+    display: none !important;
+  }
+
   .hero {
     max-width: none;
     margin: 0 0 0.15in;
@@ -277,7 +280,7 @@
 
   .hero .eyebrow,
   .hero .intro,
-  .hero > p:last-child,
+  .hero-status,
   .action-row,
   .selection-status,
   .scheduled-controls,
@@ -315,17 +318,29 @@
 
   .week-schedule-list {
     display: block;
+    padding: 0;
+    background: #fff;
   }
 
   .schedule-day-item {
+    display: block;
     break-inside: avoid;
     padding: 0.09in 0.04in 0.1in;
+    border: 0;
     border-bottom: 1px solid #aaa;
+    border-radius: 0;
     background: #fff !important;
+    box-shadow: none;
   }
 
   .schedule-day-heading {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
     margin-bottom: 0.035in;
+    padding: 0;
+    border: 0;
   }
 
   .schedule-day-name {
