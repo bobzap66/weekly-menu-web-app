@@ -10,9 +10,19 @@
     <title>Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./planner.css?v=0.19.0" />
+    <link rel="stylesheet" href="./visual.css?v=0.22.0" />
   </head>
   <body>
     <main class="app-shell">
+      <nav class="app-nav" aria-label="Primary navigation">
+        <a class="app-nav-brand" href="./">Weekly Menu</a>
+        <div class="app-nav-links">
+          <a class="app-nav-link is-active" href="./" aria-current="page">Planner</a>
+          <a class="app-nav-link" href="./history.html">History</a>
+          <a class="app-nav-link" href="./manage.html">Manage</a>
+        </div>
+      </nav>
+
       <header class="hero">
         <p class="eyebrow">Dinner, decided</p>
         <h1>Weekly Menu</h1>
@@ -21,7 +31,6 @@
           quick meals, guest nights, and carryovers land where they fit best.
         </p>
         <p id="active-list-summary" class="selection-status" hidden></p>
-        <p><a href="./manage.html">Manage meals and lists</a> · <a href="./history.html">Meal history</a></p>
       </header>
 
       <section class="menu-card" aria-labelledby="menu-heading">
