@@ -1,6 +1,9 @@
 import {
   createUserWithEmailAndPassword,
+  getIdToken,
   onAuthStateChanged,
+  reload,
+  sendEmailVerification,
   sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
@@ -20,10 +23,21 @@ const showSignupButton = document.querySelector("#show-signup-button");
 const showResetButton = document.querySelector("#show-reset-button");
 const cancelResetButton = document.querySelector("#cancel-reset-button");
 const loginStatus = document.querySelector("#login-status");
+const accountVerificationLabel = document.querySelector("#account-verification-label");
+const verificationPanel = document.querySelector("#email-verification-panel");
+const resendVerificationButton = document.querySelector("#resend-verification-button");
+const refreshVerificationButton = document.querySelector("#refresh-verification-button");
+const verificationStatus = document.querySelector("#verification-status");
 
 function setStatus(message, isError = false) {
   loginStatus.textContent = message;
   loginStatus.classList.toggle("is-error", isError);
+}
+
+function setVerificationStatus(message, isError = false) {
+  if (!verificationStatus) return;
+  verificationStatus.textContent = message;
+  verificationStatus.classList.toggle("is-error", isError);
 }
 
 function setMode(mode, { clearStatus = true } = {}) {
@@ -61,6 +75,29 @@ function signupErrorMessage(error) {
   }
 }
 
+function renderVerification(user) {
+  if (!accountVerificationLabel || !verificationPanel) return;
+
+  if (!user) {
+    accountVerificationLabel.textContent = "";
+    verificationPanel.hidden = true;
+    setVerificationStatus("");
+    return;
+  }
+
+  accountVerificationLabel.textContent = user.emailVerified ? "Verified" : "Not verified";
+  verificationPanel.hidden = user.emailVerified;
+
+  if (!user.emailVerified && !verificationStatus.textContent) {
+    setVerificationStatus("Verify this email before another household can share a meal list with it.");
+  }
+}
+
+async function sendVerification(user) {
+  await sendEmailVerification(user);
+  setVerificationStatus(`Verification email sent to ${user.email}. Open the link in that message, then return here and click “I've verified”.`);
+}
+
 showLoginButton.addEventListener("click", () => setMode("signin"));
 showSignupButton.addEventListener("click", () => setMode("signup"));
 
@@ -89,9 +126,15 @@ signupForm.addEventListener("submit", async (event) => {
 
   setStatus("Creating account…");
   try {
-    await createUserWithEmailAndPassword(auth, email, password);
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
     signupForm.reset();
     setStatus("Account created. You are signed in.");
+    try {
+      await sendVerification(credential.user);
+    } catch (verificationError) {
+      console.error(verificationError);
+      setVerificationStatus("The account was created, but the verification email could not be sent. Use Resend verification email below.", true);
+    }
   } catch (error) {
     console.error(error);
     setStatus(signupErrorMessage(error), true);
@@ -124,8 +167,56 @@ resetForm.addEventListener("submit", async (event) => {
   }
 });
 
+resendVerificationButton?.addEventListener("click", async () => {
+  const user = auth.currentUser;
+  if (!user || user.emailVerified) return;
+
+  resendVerificationButton.disabled = true;
+  setVerificationStatus("Sending verification email…");
+  try {
+    await sendVerification(user);
+  } catch (error) {
+    console.error(error);
+    setVerificationStatus(
+      error?.code === "auth/too-many-requests"
+        ? "Too many verification emails were requested. Wait a little while and try again."
+        : "Could not send the verification email. Try again.",
+      true,
+    );
+  } finally {
+    resendVerificationButton.disabled = false;
+  }
+});
+
+refreshVerificationButton?.addEventListener("click", async () => {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  refreshVerificationButton.disabled = true;
+  setVerificationStatus("Checking verification status…");
+  try {
+    await reload(user);
+    const refreshedUser = auth.currentUser;
+    if (!refreshedUser?.emailVerified) {
+      setVerificationStatus("That email is not verified yet. Open the verification link from Firebase, then check again.", true);
+      return;
+    }
+
+    await getIdToken(refreshedUser, true);
+    renderVerification(refreshedUser);
+    setVerificationStatus("Email verified. Reloading your shared lists…");
+    window.location.reload();
+  } catch (error) {
+    console.error(error);
+    setVerificationStatus("Could not refresh verification status. Try again.", true);
+  } finally {
+    refreshVerificationButton.disabled = false;
+  }
+});
+
 onAuthStateChanged(auth, (user) => {
   if (!user) setMode("signin");
+  renderVerification(user);
 });
 
 setMode("signin");
