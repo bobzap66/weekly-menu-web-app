@@ -31,6 +31,13 @@ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --role="roles/firebaserules.admin" \
   --quiet >/dev/null
 
+# Firebase CLI checks whether required APIs are enabled before deploying rules.
+# This read-only role allows that service-state check without allowing API changes.
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+  --role="roles/serviceusage.serviceUsageViewer" \
+  --quiet >/dev/null
+
 get_pool_name() {
   gcloud iam workload-identity-pools describe "${POOL_ID}" \
     --project="${PROJECT_ID}" \
