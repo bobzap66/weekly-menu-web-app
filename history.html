@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Browse completed Weekly Menu household plans." />
+    <title>Meal History — Weekly Menu</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./history.css?v=0.21.0" />
+  </head>
+  <body>
+    <main class="app-shell history-shell">
+      <header class="hero history-hero">
+        <p class="eyebrow">Weekly Menu</p>
+        <h1>Meal History</h1>
+        <p class="intro">Browse the household weeks that were archived when a new week was started.</p>
+        <p class="history-nav"><a href="./">← Weekly planner</a> · <a href="./manage.html">Manage meals and lists</a></p>
+      </header>
+
+      <section id="signed-out-card" class="menu-card history-card" hidden>
+        <div class="history-empty">
+          <h2>Sign in to view history</h2>
+          <p>Meal history is private to the owner and verified household editors. Sign in on Manage Meals, then return here.</p>
+          <p><a href="./manage.html">Go to Manage Meals</a></p>
+        </div>
+      </section>
+
+      <section id="history-panel" class="menu-card history-card" hidden>
+        <div class="history-toolbar">
+          <label>
+            <span>Meal list</span>
+            <select id="history-list-select"></select>
+          </label>
+          <label>
+            <span>Category</span>
+            <select id="history-category-filter">
+              <option value="">All categories</option>
+            </select>
+          </label>
+          <label>
+            <span>Search meals</span>
+            <input id="history-search" type="search" placeholder="Tacos, pasta, chicken…" autocomplete="off" />
+          </label>
+        </div>
+        <p id="history-status" class="selection-status" aria-live="polite"></p>
+        <div id="history-weeks" class="history-weeks"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/history-page.js?v=0.21.0"></script>
+  </body>
+</html>
