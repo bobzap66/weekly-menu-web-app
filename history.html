@@ -7,14 +7,23 @@
     <title>Meal History — Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./history.css?v=0.21.0" />
+    <link rel="stylesheet" href="./visual.css?v=0.22.0" />
   </head>
   <body>
     <main class="app-shell history-shell">
-      <header class="hero history-hero">
-        <p class="eyebrow">Weekly Menu</p>
+      <nav class="app-nav" aria-label="Primary navigation">
+        <a class="app-nav-brand" href="./">Weekly Menu</a>
+        <div class="app-nav-links">
+          <a class="app-nav-link" href="./">Planner</a>
+          <a class="app-nav-link is-active" href="./history.html" aria-current="page">History</a>
+          <a class="app-nav-link" href="./manage.html">Manage</a>
+        </div>
+      </nav>
+
+      <header class="hero history-hero utility-hero">
+        <p class="eyebrow">Household archive</p>
         <h1>Meal History</h1>
-        <p class="intro">Browse the household weeks that were archived when a new week was started.</p>
-        <p class="history-nav"><a href="./">← Weekly planner</a> · <a href="./manage.html">Manage meals and lists</a></p>
+        <p class="intro">Browse completed household weeks, search past dinners, and see what has been on the menu over time.</p>
       </header>
 
       <section id="signed-out-card" class="menu-card history-card" hidden>
