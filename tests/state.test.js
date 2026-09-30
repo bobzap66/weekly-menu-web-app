@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   DAYS,
   DAY_TYPES,
+  STATE_VERSION,
   assignMealDay,
   canAssignMealDay,
   countBigMealDays,
@@ -33,10 +34,10 @@ import {
 
 function makeSuggestions(count = 10) {
   return Array.from({ length: count }, (_, index) => ({
+    stableId: `meal-${index}`,
     categoryId: `category-${index}`,
     categoryName: `Category ${index}`,
     mealName: `Meal ${index}`,
-    mealKey: `category-${index}:Meal ${index}`,
     quick: index < 4,
     bigMeal: index >= 2 && index < 8,
   }));
@@ -65,6 +66,7 @@ test("planning state supports non-meal types plus independent quick and big requ
   state = setDayType(state, "Saturday", DAY_TYPES.EATING_OUT);
   state = setDayType(state, "Sunday", DAY_TYPES.NO_MEAL);
 
+  assert.equal(state.version, STATE_VERSION);
   assert.equal(state.mode, "setup");
   assert.equal(countMealDays(state.weekPlan), 4);
   assert.equal(countQuickMealDays(state.weekPlan), 1);
@@ -110,10 +112,10 @@ test("a day checked quick and big requires one meal carrying both tags", () => {
   const plan = planning.weekPlan;
 
   const suggestions = [
-    { categoryId: "both", categoryName: "Both", mealName: "Both Meal", mealKey: "both:Both Meal", quick: true, bigMeal: true },
-    { categoryId: "quick", categoryName: "Quick", mealName: "Quick Meal", mealKey: "quick:Quick Meal", quick: true, bigMeal: false },
-    { categoryId: "big", categoryName: "Big", mealName: "Big Meal", mealKey: "big:Big Meal", quick: false, bigMeal: true },
-    { categoryId: "plain1", categoryName: "Plain", mealName: "Plain 1", mealKey: "plain1:Plain 1", quick: false, bigMeal: false },
+    { stableId: "both-meal", categoryId: "both", categoryName: "Both", mealName: "Both Meal", quick: true, bigMeal: true },
+    { stableId: "quick-meal", categoryId: "quick", categoryName: "Quick", mealName: "Quick Meal", quick: true, bigMeal: false },
+    { stableId: "big-meal", categoryId: "big", categoryName: "Big", mealName: "Big Meal", quick: false, bigMeal: true },
+    { stableId: "plain-1", categoryId: "plain1", categoryName: "Plain", mealName: "Plain 1", quick: false, bigMeal: false },
   ];
 
   let state = createMenuState(suggestions, plan);
@@ -147,11 +149,11 @@ test("separate quick and guest days still require separate qualifying meals", ()
   const plan = planning.weekPlan;
 
   const suggestions = [
-    { categoryId: "both", categoryName: "Both", mealName: "Both Meal", mealKey: "both:Both Meal", quick: true, bigMeal: true },
-    { categoryId: "plain", categoryName: "Plain", mealName: "Plain Meal", mealKey: "plain:Plain Meal", quick: false, bigMeal: false },
-    { categoryId: "big", categoryName: "Big", mealName: "Second Big Meal", mealKey: "big:Second Big Meal", quick: false, bigMeal: true },
-    { categoryId: "extra1", categoryName: "Extra", mealName: "Extra 1", mealKey: "extra1:Extra 1", quick: false, bigMeal: false },
-    { categoryId: "extra2", categoryName: "Extra", mealName: "Extra 2", mealKey: "extra2:Extra 2", quick: false, bigMeal: false },
+    { stableId: "both-meal", categoryId: "both", categoryName: "Both", mealName: "Both Meal", quick: true, bigMeal: true },
+    { stableId: "plain-meal", categoryId: "plain", categoryName: "Plain", mealName: "Plain Meal", quick: false, bigMeal: false },
+    { stableId: "second-big", categoryId: "big", categoryName: "Big", mealName: "Second Big Meal", quick: false, bigMeal: true },
+    { stableId: "extra-1", categoryId: "extra1", categoryName: "Extra", mealName: "Extra 1", quick: false, bigMeal: false },
+    { stableId: "extra-2", categoryId: "extra2", categoryName: "Extra", mealName: "Extra 2", quick: false, bigMeal: false },
   ];
 
   let state = createMenuState(suggestions, plan);
@@ -176,11 +178,11 @@ test("manual swaps cannot break a combined quick-and-big day", () => {
   const plan = planning.weekPlan;
 
   const suggestions = [
-    { categoryId: "both", categoryName: "Both", mealName: "Both Meal", mealKey: "both:Both Meal", quick: true, bigMeal: true },
-    { categoryId: "plain", categoryName: "Plain", mealName: "Plain Meal", mealKey: "plain:Plain Meal", quick: false, bigMeal: false },
-    { categoryId: "x1", categoryName: "Extra", mealName: "Extra 1", mealKey: "x1:Extra 1", quick: false, bigMeal: false },
-    { categoryId: "x2", categoryName: "Extra", mealName: "Extra 2", mealKey: "x2:Extra 2", quick: false, bigMeal: false },
-    { categoryId: "x3", categoryName: "Extra", mealName: "Extra 3", mealKey: "x3:Extra 3", quick: false, bigMeal: false },
+    { stableId: "both-meal", categoryId: "both", categoryName: "Both", mealName: "Both Meal", quick: true, bigMeal: true },
+    { stableId: "plain-meal", categoryId: "plain", categoryName: "Plain", mealName: "Plain Meal", quick: false, bigMeal: false },
+    { stableId: "extra-1", categoryId: "x1", categoryName: "Extra", mealName: "Extra 1", quick: false, bigMeal: false },
+    { stableId: "extra-2", categoryId: "x2", categoryName: "Extra", mealName: "Extra 2", quick: false, bigMeal: false },
+    { stableId: "extra-3", categoryId: "x3", categoryName: "Extra", mealName: "Extra 3", quick: false, bigMeal: false },
   ];
 
   let state = createMenuState(suggestions, plan);
@@ -233,17 +235,17 @@ test("reopening week setup preserves carryovers but clears generated choices", (
   assert.equal(state.rejectedIds.length, 0);
   assert.equal(Object.keys(state.dayAssignments).length, 0);
   assert.equal(state.pendingCarryovers.length, 2);
-  assert.equal(state.pendingCarryovers.some((meal) => meal.mealKey === suggestions[0].mealKey), true);
-  assert.equal(state.pendingCarryovers.some((meal) => meal.mealKey === extraCarryover.mealKey), true);
+  assert.equal(state.pendingCarryovers.some((meal) => meal.stableId === suggestions[0].stableId), true);
+  assert.equal(state.pendingCarryovers.some((meal) => meal.stableId === extraCarryover.stableId), true);
   assert.equal(isValidMenuState(state), true);
 });
 
 test("zero-cook weeks preserve pending carryovers", () => {
   const carryover = {
+    stableId: "meal-tacos",
     categoryId: "mexican",
     categoryName: "Mexican",
     mealName: "Tacos",
-    mealKey: "mexican:Tacos",
     quick: true,
     bigMeal: true,
   };
@@ -256,6 +258,17 @@ test("zero-cook weeks preserve pending carryovers", () => {
   assert.equal(isValidMenuState(state), true);
 });
 
+test("planner state rejects meals without stable IDs", () => {
+  assert.throws(
+    () => createPlanningState([{ categoryId: "mexican", mealName: "Tacos" }]),
+    /stable IDs/,
+  );
+  assert.throws(
+    () => createMenuState([{ categoryId: "mexican", mealName: "Tacos" }], createWeekPlan()),
+    /stable IDs/,
+  );
+});
+
 test("validates a scheduled seven-day plan", () => {
   let state = createMenuState(makeSuggestions(10), createWeekPlan());
   state = finalize(state);
@@ -263,4 +276,5 @@ test("validates a scheduled seven-day plan", () => {
   assert.equal(isValidMenuState(state), true);
   assert.deepEqual(getScheduledWeek(state).map((entry) => entry.day), DAYS);
   assert.equal(isValidMenuState({ ...state, carryoverIds: ["missing"] }), false);
+  assert.equal(isValidMenuState({ ...state, version: STATE_VERSION - 1 }), false);
 });
