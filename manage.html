@@ -6,14 +6,14 @@
     <meta name="description" content="Sign in or create an account to manage Weekly Menu meal lists." />
     <title>Manage Meals — Weekly Menu</title>
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./manage.css?v=0.12.0" />
+    <link rel="stylesheet" href="./manage.css?v=0.13.0" />
   </head>
   <body>
     <main class="app-shell admin-shell">
       <header class="hero admin-hero">
         <p class="eyebrow">Weekly Menu</p>
         <h1>Manage Meals</h1>
-        <p class="intro">Create meal lists and manage each list's categories, meals, weights, and tags.</p>
+        <p class="intro">Create meal lists, share them with household editors, and manage each list's categories, meals, weights, and tags.</p>
         <p class="admin-nav"><a href="./">← Back to weekly planner</a></p>
       </header>
 
@@ -57,7 +57,7 @@
             <span>Confirm password</span>
             <input id="signup-password-confirm" type="password" autocomplete="new-password" minlength="6" required />
           </label>
-          <p class="auth-note wide-field">Creating an account signs you in immediately. Your meal lists are private unless a future sharing feature explicitly changes that.</p>
+          <p class="auth-note wide-field">Creating an account signs you in immediately. Lists you create start private; a list owner can explicitly add other accounts as editors.</p>
           <div class="auth-actions wide-field">
             <button class="action-button primary-button" type="submit">Create account</button>
           </div>
@@ -92,7 +92,7 @@
               <button id="sign-out-button" class="action-button secondary-button" type="button">Sign out</button>
             </div>
           </div>
-          <p class="admin-help">The list selected here is also the list the planner will use while this account is signed in on this browser.</p>
+          <p class="admin-help">The list selected here is also the list the planner will use while this account is signed in on this browser. To receive editor access to someone else's list, copy your UID and send it to that list's owner.</p>
         </section>
 
         <section class="menu-card admin-card" aria-labelledby="lists-heading">
@@ -104,7 +104,7 @@
           </div>
           <div class="list-management-grid">
             <label class="list-select-field">
-              <span>Your lists</span>
+              <span>Available lists</span>
               <select id="list-select">
                 <option value="">Loading lists…</option>
               </select>
@@ -134,8 +134,35 @@
               </form>
             </div>
           </div>
-          <p class="admin-help">New lists start empty and private. Duplicated lists also start private and copy every category and meal from the active list while preserving their IDs inside the new list. Deleting a list permanently removes its categories, meals, and this browser's saved planner state for that list. Family Dinners is protected because it remains the public catalog used by the signed-out planner.</p>
+          <p class="admin-help">Lists marked “(shared)” belong to another account but give you editor access to their categories and meals. Duplicating any available list creates a new private copy that you own. Only an owner can delete a list, and Family Dinners remains protected because it is the public catalog used by the signed-out planner.</p>
           <p id="list-status" class="admin-status" aria-live="polite"></p>
+        </section>
+
+        <section id="sharing-card" class="menu-card admin-card" aria-labelledby="sharing-heading" data-list-required>
+          <div class="admin-section-heading">
+            <div>
+              <p class="step-label">Household access</p>
+              <h2 id="sharing-heading">Share this list</h2>
+            </div>
+          </div>
+          <div class="sharing-panel">
+            <div id="sharing-owner-controls">
+              <form id="share-list-form" class="share-list-form">
+                <label>
+                  <span>Editor UID</span>
+                  <input id="share-editor-uid" type="text" maxlength="128" autocomplete="off" placeholder="Paste another account's UID" required />
+                </label>
+                <button class="action-button primary-button" type="submit">Add editor</button>
+              </form>
+              <p class="sharing-help">The other person can find their UID near the top of this page while signed into their own account. Editors can add, edit, and delete categories and meals, but cannot change sharing or delete the list.</p>
+            </div>
+            <p id="sharing-readonly-note" class="sharing-help" hidden></p>
+            <div class="sharing-editor-block">
+              <p id="sharing-summary" class="sharing-summary"></p>
+              <div id="shared-editor-list" class="shared-editor-list"></div>
+            </div>
+          </div>
+          <p id="sharing-status" class="admin-status" aria-live="polite"></p>
         </section>
 
         <section class="menu-card admin-card" aria-labelledby="category-heading" data-list-required>
@@ -245,8 +272,9 @@
       </section>
     </main>
 
-    <script type="module" src="./src/auth-ui.js?v=0.12.0"></script>
-    <script type="module" src="./src/manage-list.js?v=0.12.0"></script>
-    <script type="module" src="./src/list-delete.js?v=0.12.0"></script>
+    <script type="module" src="./src/auth-ui.js?v=0.13.0"></script>
+    <script type="module" src="./src/manage-list.js?v=0.13.0"></script>
+    <script type="module" src="./src/list-sharing.js?v=0.13.0"></script>
+    <script type="module" src="./src/list-delete.js?v=0.13.0"></script>
   </body>
 </html>
