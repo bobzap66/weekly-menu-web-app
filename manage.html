@@ -8,14 +8,23 @@
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./manage.css?v=0.18.0" />
     <link rel="stylesheet" href="./sharing.css?v=0.14.1" />
+    <link rel="stylesheet" href="./visual.css?v=0.22.0" />
   </head>
   <body>
     <main class="app-shell admin-shell">
-      <header class="hero admin-hero">
-        <p class="eyebrow">Weekly Menu</p>
+      <nav class="app-nav" aria-label="Primary navigation">
+        <a class="app-nav-brand" href="./">Weekly Menu</a>
+        <div class="app-nav-links">
+          <a class="app-nav-link" href="./">Planner</a>
+          <a class="app-nav-link" href="./history.html">History</a>
+          <a class="app-nav-link is-active" href="./manage.html" aria-current="page">Manage</a>
+        </div>
+      </nav>
+
+      <header class="hero admin-hero utility-hero">
+        <p class="eyebrow">Meal library</p>
         <h1>Manage Meals</h1>
         <p class="intro">Create meal lists, share them with household editors, and manage each list's categories, meals, weights, and tags.</p>
-        <p class="admin-nav"><a href="./">← Back to weekly planner</a> · <a href="./history.html">Meal history</a></p>
       </header>
 
       <section id="login-panel" class="menu-card admin-card auth-card" aria-labelledby="login-heading">
@@ -238,8 +247,7 @@
                 <input id="meal-recipe-url" type="url" placeholder="https://…" />
               </label>
               <label class="wide-field">
-                <span>Short description <small>(optional)</small>
-                </span>
+                <span>Short description <small>(optional)</small></span>
                 <textarea id="meal-description" maxlength="280" rows="3"></textarea>
               </label>
               <div class="checkbox-row wide-field">
