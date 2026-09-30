@@ -337,6 +337,82 @@
   border: 0;
 }
 
+.auth-mode-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.auth-mode-button[aria-pressed="true"] {
+  border-color: rgb(127 60 29 / 40%);
+  background: #f4e8dc;
+  color: #6f3319;
+}
+
+.auth-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1.5rem 1.5rem 0;
+}
+
+.auth-form[hidden] {
+  display: none;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 0.4rem;
+  color: #655e52;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.auth-form input {
+  width: 100%;
+  border: 1px solid rgb(74 63 45 / 20%);
+  border-radius: 0.7rem;
+  padding: 0.72rem 0.78rem;
+  color: #222019;
+  background: #fffdf8;
+  font: inherit;
+}
+
+.auth-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.auth-note {
+  margin: 0;
+  color: #716b60;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.text-action-button {
+  border: 0;
+  padding: 0.35rem 0;
+  color: #7f3c1d;
+  background: transparent;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.text-action-button:hover,
+.text-action-button:focus-visible {
+  text-decoration: underline;
+}
+
+.auth-status {
+  padding-top: 1rem;
+}
+
 @media (max-width: 720px) {
   .compact-form,
   .admin-form,
@@ -344,13 +420,15 @@
   .list-management-grid,
   .create-list-form,
   .duplicate-list-form,
-  .delete-list-form {
+  .delete-list-form,
+  .auth-form {
     grid-template-columns: 1fr;
   }
 
   .wide-field,
   .inline-status,
-  .delete-list-help {
+  .delete-list-help,
+  .auth-actions {
     grid-column: auto;
   }
 
@@ -359,6 +437,14 @@
   .admin-meal-card {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .auth-mode-switch {
+    width: 100%;
+  }
+
+  .auth-mode-switch .action-button {
+    flex: 1;
   }
 
   .catalog-tools {
