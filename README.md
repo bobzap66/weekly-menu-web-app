@@ -2,13 +2,13 @@
 
 A static GitHub Pages dinner planner with Firebase-backed editable meal lists.
 
-## Version 0.13.0 behavior
+## Version 0.14.0 behavior
 
 - Keeps the planner itself on GitHub Pages; there is no custom application server.
-- Supports Firebase email/password account creation, sign-in, sign-out, and password reset.
+- Supports Firebase email/password account creation, sign-in, sign-out, password reset, and email verification.
 - Stores meal catalogs under Firestore `lists/{listId}/...` documents and subcollections.
 - Lets signed-in users create, duplicate, switch between, and delete named meal lists they own.
-- Lets list owners explicitly share a list with other signed-in accounts as editors by Firebase UID.
+- Lets list owners explicitly share a list with another household editor by verified email address.
 - Shared editors can add, edit, disable, and delete categories and meals, but cannot change sharing, ownership, or delete the parent list.
 - Protects the public **Family Dinners** default list from deletion. It remains owner-only for writes unless its owner explicitly shares it.
 - New empty lists start private and unshared; duplicated lists also start private and unshared.
@@ -35,7 +35,7 @@ lists/
   LIST_ID/
     name
     ownerUid
-    editorUids[]
+    editorEmails[]
     publicRead
     schemaVersion
     createdAt
@@ -60,9 +60,9 @@ lists/
         order
 ```
 
-The original list uses the document ID `default` and is named **Family Dinners**. It remains `publicRead: true` so signed-out visitors can use the normal planner without an account. Public read access does not grant write access. Family Dinners categories and meals can be changed only by its owner or by an editor the owner explicitly adds.
+The original list uses the document ID `default` and is named **Family Dinners**. It remains `publicRead: true` so signed-out visitors can use the normal planner without an account. Public read access does not grant write access. Family Dinners categories and meals can be changed only by its owner or by a verified-email editor the owner explicitly adds.
 
-Lists created or duplicated through Manage Meals use generated Firestore document IDs and default to `publicRead: false` with an empty `editorUids` array.
+Lists created or duplicated through Manage Meals use generated Firestore document IDs and default to `publicRead: false` with an empty `editorEmails` array.
 
 The previous top-level `categories` and `meals` collections remain physically present in Firestore as an inert rollback snapshot, but the current security rules grant the application no read or write access to them.
 
@@ -72,18 +72,20 @@ Duplicating a list preserves every category document ID, meal document ID, stabl
 
 ## Accounts and shared lists
 
-The Manage Meals page supports account creation, sign-in, sign-out, and password-reset email through Firebase Authentication.
+The Manage Meals page supports account creation, sign-in, sign-out, password-reset email, and email verification through Firebase Authentication.
 
-A signed-in account's Firebase UID is displayed near the top of Manage Meals with a **Copy UID** button. To share a list, the owner selects it and pastes another account's UID into **Household access → Share this list**. The UID is added to that list's `editorUids` array.
+New email/password accounts receive a Firebase verification email after signup. An account may own and manage its own lists before verification, but it must verify its email before it can receive editor access to another household's list. Existing unverified accounts can resend the verification email and refresh their verification status from Manage Meals.
+
+To share a list, the owner selects it and enters another person's account email under **Household access → Share this list**. The email is normalized to lowercase and added to that list's `editorEmails` array. The recipient does not need to exist yet: once an account signs in with that email and verifies it, the shared list becomes available. The static app does not currently send a separate custom invitation email.
 
 Manage Meals discovers both kinds of lists available to the signed-in user:
 
 - lists where `ownerUid` equals the user's UID;
-- lists where `editorUids` contains the user's UID.
+- when the user's email is verified, lists where `editorEmails` contains the normalized account email.
 
-Shared lists are marked **(shared)** in the list selector. An editor may use the same catalog-management tools as the owner for categories and meals. The owner alone controls the `editorUids` list and may remove an editor at any time. Only the owner may delete the parent list. The protected `default` Family Dinners parent cannot be deleted even by its owner.
+Shared lists are marked **(shared)** in the list selector. An editor may use the same catalog-management tools as the owner for categories and meals. The owner alone controls the `editorEmails` list and may remove an editor at any time. Only the owner may delete the parent list. The protected `default` Family Dinners parent cannot be deleted even by its owner.
 
-Removing an editor revokes that account's Firestore access to the list on subsequent requests. If an inaccessible shared list was the browser's saved active list, the planner falls back to the public Family Dinners list when it can no longer read the selected catalog.
+Removing an editor email revokes that account's Firestore access to the list on subsequent requests. If an inaccessible shared list was the browser's saved active list, the planner falls back to the public Family Dinners list when it can no longer read the selected catalog.
 
 Sharing currently covers the **meal-list catalog**, not the weekly planner's browser-local state. Two household members editing the same shared list see the same Firestore categories and meals, but each browser still has its own current week, carryovers, recency history, and Nothing New preference. Cloud-synced household planning can be added separately later.
 
@@ -116,9 +118,9 @@ The repository includes `firestore.rules`.
 The current access model is:
 
 - A signed-in user may create a list only with their own UID as `ownerUid`.
-- An owner may read and modify the list metadata, including `editorUids`.
-- An explicit editor may read the list metadata but cannot modify it.
-- An owner or explicit editor may create, edit, and delete nested categories and meals.
+- An owner may read and modify the list metadata, including `editorEmails`.
+- A signed-in editor may read list metadata and edit nested catalog data only when Firebase says their account email is verified and the lowercased token email appears in `editorEmails`.
+- An owner or verified-email editor may create, edit, and delete nested categories and meals.
 - Only the owner may delete a non-default parent list.
 - The `default` Family Dinners parent document cannot be deleted.
 - Nested categories and meals may be read without authentication only when the parent list has `publicRead: true`.
