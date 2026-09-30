@@ -156,31 +156,34 @@
           <p id="list-status" class="admin-status" aria-live="polite"></p>
         </section>
 
-        <section id="sharing-card" class="menu-card admin-card" aria-labelledby="sharing-heading" data-list-required>
-          <div class="admin-section-heading">
-            <div>
-              <p class="step-label">Household access</p>
-              <h2 id="sharing-heading">Share this list</h2>
+        <section id="sharing-card" class="menu-card admin-card collapsible-card" aria-labelledby="sharing-heading" data-list-required>
+          <details class="admin-card-details">
+            <summary class="admin-section-heading collapsible-heading">
+              <div>
+                <p class="step-label">Household access</p>
+                <h2 id="sharing-heading">Share this list</h2>
+              </div>
+              <span class="disclosure-note">Invite or remove household editors</span>
+            </summary>
+            <div class="sharing-panel">
+              <div id="sharing-owner-controls">
+                <form id="share-list-form" class="share-list-form">
+                  <label>
+                    <span>Editor email</span>
+                    <input id="share-editor-email" type="email" maxlength="254" autocomplete="email" placeholder="person@example.com" required />
+                  </label>
+                  <button class="action-button primary-button" type="submit">Add editor</button>
+                </form>
+                <p class="sharing-help">Enter the email address the other person will use for Weekly Menu. After adding them, use <strong>Open email</strong> to launch your mail app with a prefilled invitation, or <strong>Copy invite</strong> to paste the same template somewhere else. Their account must verify that email before the shared list will appear.</p>
+              </div>
+              <p id="sharing-readonly-note" class="sharing-help" hidden></p>
+              <div class="sharing-editor-block">
+                <p id="sharing-summary" class="sharing-summary"></p>
+                <div id="shared-editor-list" class="shared-editor-list"></div>
+              </div>
             </div>
-          </div>
-          <div class="sharing-panel">
-            <div id="sharing-owner-controls">
-              <form id="share-list-form" class="share-list-form">
-                <label>
-                  <span>Editor email</span>
-                  <input id="share-editor-email" type="email" maxlength="254" autocomplete="email" placeholder="person@example.com" required />
-                </label>
-                <button class="action-button primary-button" type="submit">Add editor</button>
-              </form>
-              <p class="sharing-help">Enter the email address the other person will use for Weekly Menu. After adding them, use <strong>Open email</strong> to launch your mail app with a prefilled invitation, or <strong>Copy invite</strong> to paste the same template somewhere else. Their account must verify that email before the shared list will appear.</p>
-            </div>
-            <p id="sharing-readonly-note" class="sharing-help" hidden></p>
-            <div class="sharing-editor-block">
-              <p id="sharing-summary" class="sharing-summary"></p>
-              <div id="shared-editor-list" class="shared-editor-list"></div>
-            </div>
-          </div>
-          <p id="sharing-status" class="admin-status" aria-live="polite"></p>
+            <p id="sharing-status" class="admin-status" aria-live="polite"></p>
+          </details>
         </section>
 
         <section class="menu-card admin-card collapsible-card" data-list-required>
@@ -207,47 +210,50 @@
           </details>
         </section>
 
-        <section class="menu-card admin-card" aria-labelledby="editor-heading" data-list-required>
-          <div class="admin-section-heading">
-            <div>
-              <p class="step-label">Meal editor</p>
-              <h2 id="editor-heading">Add or edit a meal</h2>
-            </div>
-          </div>
-          <form id="meal-form" class="admin-form meal-form">
-            <input id="meal-id" type="hidden" />
-            <label class="wide-field">
-              <span>Meal name</span>
-              <input id="meal-name" type="text" maxlength="120" required />
-            </label>
-            <label>
-              <span>Category</span>
-              <select id="meal-category" required></select>
-            </label>
-            <label>
-              <span>Weight</span>
-              <input id="meal-weight" type="number" min="0.01" step="0.01" value="1" required />
-            </label>
-            <label class="wide-field">
-              <span>Recipe link <small>(optional)</small></span>
-              <input id="meal-recipe-url" type="url" placeholder="https://…" />
-            </label>
-            <label class="wide-field">
-              <span>Short description <small>(optional)</small>
-              </span>
-              <textarea id="meal-description" maxlength="280" rows="3"></textarea>
-            </label>
-            <div class="checkbox-row wide-field">
-              <label class="checkbox-label"><input id="meal-quick" type="checkbox" /> Quick meal</label>
-              <label class="checkbox-label"><input id="meal-big" type="checkbox" /> Big meal / guests</label>
-              <label class="checkbox-label"><input id="meal-active" type="checkbox" checked /> Active</label>
-            </div>
-            <div class="form-actions wide-field">
-              <button class="action-button primary-button" type="submit">Save meal</button>
-              <button id="cancel-edit-button" class="action-button secondary-button" type="button" hidden>Cancel edit</button>
-            </div>
-          </form>
-          <p id="editor-status" class="admin-status" aria-live="polite"></p>
+        <section class="menu-card admin-card collapsible-card" aria-labelledby="editor-heading" data-list-required>
+          <details id="meal-editor-details" class="admin-card-details">
+            <summary class="admin-section-heading collapsible-heading">
+              <div>
+                <p class="step-label">Meal editor</p>
+                <h2 id="editor-heading">Add or edit a meal</h2>
+              </div>
+              <span class="disclosure-note">Create a meal or edit one from the catalog</span>
+            </summary>
+            <form id="meal-form" class="admin-form meal-form">
+              <input id="meal-id" type="hidden" />
+              <label class="wide-field">
+                <span>Meal name</span>
+                <input id="meal-name" type="text" maxlength="120" required />
+              </label>
+              <label>
+                <span>Category</span>
+                <select id="meal-category" required></select>
+              </label>
+              <label>
+                <span>Weight</span>
+                <input id="meal-weight" type="number" min="0.01" step="0.01" value="1" required />
+              </label>
+              <label class="wide-field">
+                <span>Recipe link <small>(optional)</small></span>
+                <input id="meal-recipe-url" type="url" placeholder="https://…" />
+              </label>
+              <label class="wide-field">
+                <span>Short description <small>(optional)</small>
+                </span>
+                <textarea id="meal-description" maxlength="280" rows="3"></textarea>
+              </label>
+              <div class="checkbox-row wide-field">
+                <label class="checkbox-label"><input id="meal-quick" type="checkbox" /> Quick meal</label>
+                <label class="checkbox-label"><input id="meal-big" type="checkbox" /> Big meal / guests</label>
+                <label class="checkbox-label"><input id="meal-active" type="checkbox" checked /> Active</label>
+              </div>
+              <div class="form-actions wide-field">
+                <button class="action-button primary-button" type="submit">Save meal</button>
+                <button id="cancel-edit-button" class="action-button secondary-button" type="button" hidden>Cancel edit</button>
+              </div>
+            </form>
+            <p id="editor-status" class="admin-status" aria-live="polite"></p>
+          </details>
         </section>
 
         <section class="menu-card admin-card" aria-labelledby="catalog-heading" data-list-required>
@@ -298,5 +304,6 @@
     <script type="module" src="./src/manage-list.js?v=0.15.0"></script>
     <script type="module" src="./src/list-sharing.js?v=0.15.0"></script>
     <script type="module" src="./src/list-delete.js?v=0.15.0"></script>
+    <script type="module" src="./src/manage-collapsibles.js?v=0.20.0"></script>
   </body>
 </html>
