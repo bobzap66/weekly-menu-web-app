@@ -22,7 +22,7 @@ import {
   DEFAULT_LIST_NAME,
   getStoredActiveList,
   setStoredActiveList,
-} from "./list-config.js?v=0.10.0";
+} from "./list-config.js?v=0.13.0";
 
 const loginPanel = document.querySelector("#login-panel");
 const adminPanel = document.querySelector("#admin-panel");
@@ -72,7 +72,7 @@ const mealSearch = document.querySelector("#meal-search");
 
 const COPY_BATCH_SIZE = 400;
 
-let ownedLists = [];
+let availableLists = [];
 let activeListId = null;
 let activeListName = "";
 let categories = [];
@@ -101,9 +101,13 @@ function setListRequiredVisibility(hasList) {
   for (const section of listRequiredSections) section.hidden = !hasList;
 }
 
+function isOwnedByCurrentUser(list) {
+  return Boolean(auth.currentUser && list?.ownerUid === auth.currentUser.uid);
+}
+
 function listNameExists(name) {
   const normalized = name.trim().toLowerCase();
-  return ownedLists.some((list) => String(list.name ?? "").trim().toLowerCase() === normalized);
+  return availableLists.some((list) => String(list.name ?? "").trim().toLowerCase() === normalized);
 }
 
 function nextDuplicateName(name) {
@@ -129,7 +133,7 @@ function refreshDuplicateControls() {
 function renderListControls() {
   listSelect.replaceChildren();
 
-  if (ownedLists.length === 0) {
+  if (availableLists.length === 0) {
     const option = document.createElement("option");
     option.value = "";
     option.textContent = "No lists yet";
@@ -142,16 +146,23 @@ function renderListControls() {
   }
 
   listSelect.disabled = false;
-  for (const list of ownedLists) {
+  for (const list of availableLists) {
+    const owned = isOwnedByCurrentUser(list);
     const option = document.createElement("option");
     option.value = list.id;
-    option.textContent = list.name;
+    option.textContent = owned ? list.name : `${list.name} (shared)`;
+    option.dataset.listName = list.name;
+    option.dataset.ownerUid = list.ownerUid ?? "";
+    option.dataset.editorUids = JSON.stringify(Array.isArray(list.editorUids) ? list.editorUids : []);
     option.selected = list.id === activeListId;
     listSelect.append(option);
   }
 
-  listSelect.value = activeListId ?? ownedLists[0].id;
-  listNameDisplay.textContent = activeListName || "None";
+  listSelect.value = activeListId ?? availableLists[0].id;
+  const activeList = availableLists.find((list) => list.id === activeListId);
+  listNameDisplay.textContent = activeList
+    ? `${activeList.name}${isOwnedByCurrentUser(activeList) ? "" : " (shared)"}`
+    : "None";
   setListRequiredVisibility(Boolean(activeListId));
   refreshDuplicateControls();
 }
@@ -167,22 +178,45 @@ function clearCatalogUi() {
   categoryFilter.append(allOption);
   categoryEditForm.hidden = true;
   populateCategorySelect();
-  setStatus(catalogStatus, activeListId ? "This list has no meals yet." : "Create a list to begin.");
+  setStatus(catalogStatus, activeListId ? "This list has no meals yet." : "Create or receive a shared list to begin.");
 }
 
-async function loadOwnedLists(user, preferredId = null) {
-  const listQuery = query(collection(db, "lists"), where("ownerUid", "==", user.uid));
-  const snapshot = await getDocs(listQuery);
-  ownedLists = snapshot.docs
-    .map((item) => ({ id: item.id, ...item.data() }))
-    .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")));
+async function loadAccessibleLists(user, preferredId = null) {
+  const ownedQuery = query(collection(db, "lists"), where("ownerUid", "==", user.uid));
+  const sharedQuery = query(collection(db, "lists"), where("editorUids", "array-contains", user.uid));
+  const ownedSnapshot = await getDocs(ownedQuery);
+
+  let sharedSnapshot = null;
+  try {
+    sharedSnapshot = await getDocs(sharedQuery);
+  } catch (error) {
+    // During a rules deployment there can be a brief window where the new shared
+    // query is not authorized yet. Owned lists should remain usable meanwhile.
+    console.warn("Could not load shared meal lists yet.", error);
+  }
+
+  const byId = new Map();
+  for (const item of ownedSnapshot.docs) byId.set(item.id, { id: item.id, ...item.data() });
+  if (sharedSnapshot) {
+    for (const item of sharedSnapshot.docs) byId.set(item.id, { id: item.id, ...item.data() });
+  }
+
+  availableLists = [...byId.values()]
+    .map((list) => ({
+      ...list,
+      editorUids: Array.isArray(list.editorUids) ? list.editorUids : [],
+    }))
+    .sort((a, b) => {
+      const ownerOrder = Number(!isOwnedByCurrentUser(a)) - Number(!isOwnedByCurrentUser(b));
+      return ownerOrder || String(a.name ?? "").localeCompare(String(b.name ?? ""));
+    });
 
   const stored = getStoredActiveList();
   const desiredId = preferredId ?? stored.id;
   const selected =
-    ownedLists.find((list) => list.id === desiredId) ??
-    ownedLists.find((list) => list.id === DEFAULT_LIST_ID) ??
-    ownedLists[0] ??
+    availableLists.find((list) => list.id === desiredId) ??
+    availableLists.find((list) => list.id === DEFAULT_LIST_ID) ??
+    availableLists[0] ??
     null;
 
   activeListId = selected?.id ?? null;
@@ -196,25 +230,30 @@ async function loadOwnedLists(user, preferredId = null) {
     resetMealForm();
   } else {
     clearCatalogUi();
-    setStatus(listStatus, "You do not have a meal list yet. Create one below.");
+    setStatus(listStatus, "You do not own or share any meal lists yet. Create one below, or give another list owner your UID.");
   }
 }
 
 async function switchToList(id) {
-  const selected = ownedLists.find((list) => list.id === id);
+  const selected = availableLists.find((list) => list.id === id);
   if (!selected) return;
 
   activeListId = selected.id;
   activeListName = selected.name;
   setStoredActiveList(selected.id, selected.name);
-  listNameDisplay.textContent = selected.name;
+  listNameDisplay.textContent = `${selected.name}${isOwnedByCurrentUser(selected) ? "" : " (shared)"}`;
   setListRequiredVisibility(true);
   refreshDuplicateControls();
   resetMealForm();
   categoryFilter.value = "";
   mealSearch.value = "";
   await loadCatalog();
-  setStatus(listStatus, `Now editing ${selected.name}. The planner will use this list while you are signed in.`);
+  setStatus(
+    listStatus,
+    isOwnedByCurrentUser(selected)
+      ? `Now editing ${selected.name}. The planner will use this list while you are signed in.`
+      : `Now editing ${selected.name}, shared with you. The planner will use this list while you are signed in.`,
+  );
 }
 
 async function copySnapshotDocuments(destinationListId, categorySnapshot, mealSnapshot) {
@@ -351,7 +390,7 @@ async function removeMeal(id) {
     setStatus(editorStatus, `${meal.name} deleted.`);
   } catch (error) {
     console.error(error);
-    setStatus(editorStatus, "Could not delete that meal. Check the Firestore security rules.", true);
+    setStatus(editorStatus, "Could not delete that meal. Check your access to this list.", true);
   }
 }
 
@@ -462,7 +501,7 @@ async function loadCatalog() {
   } catch (error) {
     console.error(error);
     clearCatalogUi();
-    setStatus(catalogStatus, "Could not read this meal list. Check the connection and Firestore security rules.", true);
+    setStatus(catalogStatus, "Could not read this meal list. Check the connection and your list access.", true);
   }
 }
 
@@ -511,7 +550,7 @@ createListForm.addEventListener("submit", async (event) => {
     return;
   }
   if (listNameExists(name)) {
-    setStatus(listStatus, `You already have a list named ${name}.`, true);
+    setStatus(listStatus, `A list named ${name} is already available to you.`, true);
     return;
   }
 
@@ -520,13 +559,14 @@ createListForm.addEventListener("submit", async (event) => {
     const listRef = await addDoc(collection(db, "lists"), {
       name,
       ownerUid: user.uid,
+      editorUids: [],
       publicRead: false,
       schemaVersion: 1,
       createdAt: serverTimestamp(),
     });
     createListForm.reset();
-    await loadOwnedLists(user, listRef.id);
-    setStatus(listStatus, `${name} created. New lists start empty and private.`);
+    await loadAccessibleLists(user, listRef.id);
+    setStatus(listStatus, `${name} created. New lists start private and unshared.`);
   } catch (error) {
     console.error(error);
     setStatus(listStatus, "Could not create the list. Check the Firestore security rules.", true);
@@ -536,7 +576,7 @@ createListForm.addEventListener("submit", async (event) => {
 duplicateListForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const user = auth.currentUser;
-  const source = ownedLists.find((list) => list.id === activeListId);
+  const source = availableLists.find((list) => list.id === activeListId);
   const name = duplicateListName.value.trim();
 
   if (!user || !source) {
@@ -548,7 +588,7 @@ duplicateListForm.addEventListener("submit", async (event) => {
     return;
   }
   if (listNameExists(name)) {
-    setStatus(listStatus, `You already have a list named ${name}.`, true);
+    setStatus(listStatus, `A list named ${name} is already available to you.`, true);
     return;
   }
 
@@ -568,6 +608,7 @@ duplicateListForm.addEventListener("submit", async (event) => {
     const listRef = await addDoc(collection(db, "lists"), {
       name,
       ownerUid: user.uid,
+      editorUids: [],
       publicRead: false,
       schemaVersion: Number(source.schemaVersion) || 1,
       createdAt: serverTimestamp(),
@@ -575,10 +616,10 @@ duplicateListForm.addEventListener("submit", async (event) => {
     destinationListId = listRef.id;
 
     await copySnapshotDocuments(destinationListId, sourceCategorySnapshot, sourceMealSnapshot);
-    await loadOwnedLists(user, destinationListId);
+    await loadAccessibleLists(user, destinationListId);
     setStatus(
       listStatus,
-      `${name} created as a private copy of ${source.name}: ${sourceCategorySnapshot.size} categories and ${sourceMealSnapshot.size} meals copied.`,
+      `${name} created as your private copy of ${source.name}: ${sourceCategorySnapshot.size} categories and ${sourceMealSnapshot.size} meals copied.`,
     );
   } catch (error) {
     console.error(error);
@@ -629,7 +670,7 @@ categoryForm.addEventListener("submit", async (event) => {
     setStatus(categoryStatus, `${name} added and selected in ${activeListName}.`);
   } catch (error) {
     console.error(error);
-    setStatus(categoryStatus, "Could not add the category. Check the Firestore security rules.", true);
+    setStatus(categoryStatus, "Could not add the category. Check your access to this list.", true);
   }
 });
 
@@ -657,7 +698,7 @@ categoryEditForm.addEventListener("submit", async (event) => {
     setStatus(categoryEditStatus, `${name} updated.`);
   } catch (error) {
     console.error(error);
-    setStatus(categoryEditStatus, "Could not update the category. Check the Firestore security rules.", true);
+    setStatus(categoryEditStatus, "Could not update the category. Check your access to this list.", true);
   }
 });
 
@@ -709,7 +750,7 @@ mealForm.addEventListener("submit", async (event) => {
     resetMealForm();
   } catch (error) {
     console.error(error);
-    setStatus(editorStatus, "Could not save the meal. Check the Firestore security rules.", true);
+    setStatus(editorStatus, "Could not save the meal. Check your access to this list.", true);
   }
 });
 
@@ -719,7 +760,7 @@ onAuthStateChanged(auth, async (user) => {
     adminPanel.hidden = true;
     accountEmail.textContent = "";
     accountUid.textContent = "";
-    ownedLists = [];
+    availableLists = [];
     activeListId = null;
     activeListName = "";
     return;
@@ -732,13 +773,19 @@ onAuthStateChanged(auth, async (user) => {
 
   try {
     setStatus(listStatus, "Loading your meal lists…");
-    await loadOwnedLists(user);
+    await loadAccessibleLists(user);
     if (activeListId) {
-      setStatus(listStatus, `Editing ${activeListName}.`);
+      const active = availableLists.find((list) => list.id === activeListId);
+      setStatus(
+        listStatus,
+        active && !isOwnedByCurrentUser(active)
+          ? `Editing ${activeListName}, shared with you.`
+          : `Editing ${activeListName}.`,
+      );
     }
   } catch (error) {
     console.error(error);
-    ownedLists = [];
+    availableLists = [];
     activeListId = null;
     activeListName = "";
     renderListControls();
