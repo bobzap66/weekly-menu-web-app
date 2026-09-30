@@ -70,12 +70,13 @@ service cloud.firestore {
         allow delete: if plannerId == "current" && ownsList(listId);
       }
 
-      // Completed weeks are a private, append-only household archive. Either an
-      // owner or verified editor can finish a week, but archived records cannot be
-      // edited or removed independently afterward.
+      // Completed weeks are a private household archive. Weeks are append-only in
+      // normal use; owner deletion is permitted solely so deleting an entire list
+      // can clean up its Firestore subcollection before removing the parent.
       match /history/{historyId} {
         allow read, create: if canEditList(listId);
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if ownsList(listId);
       }
     }
 
