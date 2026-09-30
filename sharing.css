@@ -72,6 +72,13 @@
   overflow-wrap: anywhere;
 }
 
+.shared-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
 @media (max-width: 720px) {
   .share-list-form {
     grid-template-columns: 1fr;
@@ -80,5 +87,9 @@
   .shared-editor-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .shared-editor-actions {
+    justify-content: flex-start;
   }
 }
