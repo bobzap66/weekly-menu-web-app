@@ -10,6 +10,7 @@ import {
 import { auth, db } from "./firebase.js";
 import { getStoredActiveList } from "./list-config.js?v=0.17.0";
 
+const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const signedOutCard = document.querySelector("#signed-out-card");
 const historyPanel = document.querySelector("#history-panel");
 const listSelect = document.querySelector("#history-list-select");
@@ -208,8 +209,8 @@ function renderWeeks() {
       heading.append(title, count);
 
       days.className = "history-day-list";
-      for (const [dayName, day] of Object.entries(week.days ?? {})) {
-        days.append(createDayRow(dayName, day));
+      for (const dayName of DAY_ORDER) {
+        days.append(createDayRow(dayName, week.days?.[dayName]));
       }
 
       card.append(heading, days);
