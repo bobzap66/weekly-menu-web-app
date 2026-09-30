@@ -1,9 +1,9 @@
-import { menuData } from "./data.js?v=0.15.0";
+import { menuData } from "./data.js?v=0.16.0";
 import {
   addWeekToHistory,
   createHistory,
   isValidHistory,
-} from "./history.js?v=0.15.0";
+} from "./history.js?v=0.16.0";
 import {
   DAYS,
   DAY_TYPE_LABELS,
@@ -32,16 +32,17 @@ import {
   setDayType,
   toggleCarryover,
   toggleRejection,
-} from "./state.js?v=0.15.0";
-import { getPlannerStorageKeys } from "./planner-storage.js?v=0.15.0";
+} from "./state.js?v=0.16.0";
+import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.16.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.16.0";
 import {
   CLOUD_PLANNER_SCHEMA_VERSION,
   canUseCloudPlanner,
   loadCloudPlanner,
   saveCloudPlanner,
   subscribeCloudPlanner,
-} from "./planner-sync.js?v=0.15.0";
-import { buildNextWeekSuggestions } from "./week.js?v=0.15.0";
+} from "./planner-sync.js?v=0.16.0";
+import { buildNextWeekSuggestions } from "./week.js?v=0.16.0";
 
 const activeListId = document.documentElement.dataset.activeListId;
 const activeListName = document.documentElement.dataset.activeListName || "Meal List";
@@ -534,6 +535,61 @@ function renderCandidates() {
   tertiaryButton.hidden = false;
 }
 
+function createManualMealSelect(meal, currentDay) {
+  const label = document.createElement("label");
+  const labelText = document.createElement("span");
+  const select = document.createElement("select");
+  const mealsByStableId = new Map();
+  const groups = getManualMealGroups(menuData, state.weekPlan[currentDay]);
+  let foundCurrentMeal = false;
+
+  label.className = "manual-meal-control";
+  labelText.className = "manual-meal-label";
+  labelText.textContent = "Set meal";
+  select.className = "manual-meal-select";
+  select.setAttribute("aria-label", `Set meal for ${currentDay}`);
+
+  for (const group of groups) {
+    const optionGroup = document.createElement("optgroup");
+    optionGroup.label = group.name;
+
+    for (const savedMeal of group.meals) {
+      const option = document.createElement("option");
+      option.value = savedMeal.stableId;
+      option.textContent = savedMeal.mealName;
+      option.selected = savedMeal.stableId === meal.stableId;
+      if (option.selected) foundCurrentMeal = true;
+      mealsByStableId.set(savedMeal.stableId, savedMeal);
+      optionGroup.append(option);
+    }
+
+    select.append(optionGroup);
+  }
+
+  if (!foundCurrentMeal) {
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = groups.length > 0 ? "Choose a saved meal…" : "No qualifying saved meals";
+    placeholder.selected = true;
+    placeholder.disabled = true;
+    select.prepend(placeholder);
+  }
+
+  if (groups.length === 0) select.disabled = true;
+
+  select.addEventListener("change", () => {
+    const replacement = mealsByStableId.get(select.value);
+    if (!replacement) return;
+
+    state = replaceScheduledMeal(state, meal.id, replacement);
+    saveState();
+    render();
+  });
+
+  label.append(labelText, select);
+  return label;
+}
+
 function createDaySelect(meal, currentDay) {
   const select = document.createElement("select");
   select.className = "day-select";
@@ -594,9 +650,9 @@ function renderScheduledWeek() {
     ? `${mealCount} ${plural(mealCount, "dinner")}, scheduled`
     : "Week planned";
   selectionStatus.textContent = carryoverCount > 0
-    ? `${carryoverCount} ${plural(carryoverCount, "dinner")} marked to carry forward. Checked Quick and Guests requirements remain locked to qualifying dinners.`
+    ? `${carryoverCount} ${plural(carryoverCount, "dinner")} marked to carry forward. Checked Quick and Guests requirements remain locked to qualifying dinners. Use Set meal to choose an exact saved dinner for any day.`
     : mealCount > 0
-      ? "Quick and Big Meal / Guests requirements are matched to qualifying dinners. Move meals between compatible days anytime."
+      ? "Quick and Big Meal / Guests requirements are matched to qualifying dinners. Move meals between compatible days or use Set meal to choose an exact saved dinner."
       : "No cooked dinners are scheduled this week.";
 
   menuList.className = "week-schedule-list";
@@ -623,7 +679,11 @@ function renderScheduledWeek() {
       mealRow.className = "scheduled-meal-row";
       controls.className = "scheduled-controls";
       mealRow.append(createMealContent(meal));
-      controls.append(createDaySelect(meal, day), createCarryoverToggle(meal));
+      controls.append(
+        createManualMealSelect(meal, day),
+        createDaySelect(meal, day),
+        createCarryoverToggle(meal),
+      );
       item.append(mealRow, controls);
     } else {
       const note = document.createElement("p");
