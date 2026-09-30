@@ -69,6 +69,14 @@ service cloud.firestore {
         allow read, create, update: if plannerId == "current" && canEditList(listId);
         allow delete: if plannerId == "current" && ownsList(listId);
       }
+
+      // Completed weeks are a private, append-only household archive. Either an
+      // owner or verified editor can finish a week, but archived records cannot be
+      // edited or removed independently afterward.
+      match /history/{historyId} {
+        allow read, create: if canEditList(listId);
+        allow update, delete: if false;
+      }
     }
 
     // Legacy top-level categories/meals remain in Firestore as an inert backup.
