@@ -1,9 +1,9 @@
-import { menuData } from "./data.js";
+import { menuData } from "./data.js?v=0.11.0";
 import {
   addWeekToHistory,
   createHistory,
   isValidHistory,
-} from "./history.js";
+} from "./history.js?v=0.11.0";
 import {
   DAYS,
   DAY_TYPE_LABELS,
@@ -32,12 +32,15 @@ import {
   setDayType,
   toggleCarryover,
   toggleRejection,
-} from "./state.js";
-import { buildNextWeekSuggestions } from "./week.js";
+} from "./state.js?v=0.11.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.11.0";
+import { buildNextWeekSuggestions } from "./week.js?v=0.11.0";
 
-const STORAGE_KEY = "weekly-menu:v6";
-const HISTORY_STORAGE_KEY = "weekly-menu:history:v1";
-const NOTHING_NEW_STORAGE_KEY = "weekly-menu:nothing-new";
+const activeListId = document.documentElement.dataset.activeListId;
+const plannerStorageKeys = getPlannerStorageKeys(activeListId);
+const STORAGE_KEY = plannerStorageKeys.state;
+const HISTORY_STORAGE_KEY = plannerStorageKeys.history;
+const NOTHING_NEW_STORAGE_KEY = plannerStorageKeys.nothingNew;
 
 const menuList = document.querySelector("#menu-list");
 const stepLabel = document.querySelector("#step-label");
