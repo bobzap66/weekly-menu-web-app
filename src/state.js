@@ -45,6 +45,13 @@ export function isMealDayType(type) {
   return type === DAY_TYPES.NORMAL;
 }
 
+function mealMeetsDayPlan(meal, dayPlan) {
+  if (!meal || !dayPlan || !isMealDayType(dayPlan.type)) return false;
+  if (dayPlan.quick && meal.quick !== true) return false;
+  if (dayPlan.bigMeal && meal.bigMeal !== true) return false;
+  return true;
+}
+
 function createDayPlan(type = DAY_TYPES.NORMAL) {
   return {
     type,
@@ -55,6 +62,27 @@ function createDayPlan(type = DAY_TYPES.NORMAL) {
 
 function cloneWeekPlan(weekPlan) {
   return Object.fromEntries(DAYS.map((day) => [day, { ...weekPlan[day] }]));
+}
+
+function clonePinnedMeals(pinnedMeals = {}) {
+  return Object.fromEntries(
+    Object.entries(pinnedMeals).map(([day, meal]) => [day, { ...meal }]),
+  );
+}
+
+function getPinnedMeals(state) {
+  return state?.pinnedMeals && typeof state.pinnedMeals === "object" && !Array.isArray(state.pinnedMeals)
+    ? state.pinnedMeals
+    : {};
+}
+
+function isValidPinnedMeals(pinnedMeals, weekPlan) {
+  if (pinnedMeals === undefined) return true;
+  if (!pinnedMeals || typeof pinnedMeals !== "object" || Array.isArray(pinnedMeals)) return false;
+
+  return Object.entries(pinnedMeals).every(
+    ([day, meal]) => DAYS.includes(day) && hasStableMealId(meal) && mealMeetsDayPlan(meal, weekPlan[day]),
+  );
 }
 
 export function createWeekPlan(defaultType = DAY_TYPES.NORMAL) {
@@ -125,6 +153,7 @@ export function createPlanningState(
   carryoverMeals = [],
   weekPlan = createWeekPlan(),
   createdAt = new Date().toISOString(),
+  pinnedMeals = {},
 ) {
   if (!Array.isArray(carryoverMeals)) {
     throw new Error("Carryover meals must be an array.");
@@ -138,11 +167,16 @@ export function createPlanningState(
     throw new Error("Week plan is invalid.");
   }
 
+  if (!isValidPinnedMeals(pinnedMeals, weekPlan)) {
+    throw new Error("Pinned meals must match their planned dinner days.");
+  }
+
   return {
     version: STATE_VERSION,
     mode: "setup",
     createdAt,
     weekPlan: cloneWeekPlan(weekPlan),
+    pinnedMeals: clonePinnedMeals(pinnedMeals),
     pendingCarryovers: carryoverMeals.map((meal) => ({ ...meal })),
     candidates: [],
     rejectedIds: [],
@@ -160,6 +194,11 @@ export function setDayType(state, day, type) {
   const next = isMealDayType(type)
     ? { type, quick: current.quick === true, bigMeal: current.bigMeal === true }
     : createDayPlan(type);
+  const pinnedMeals = { ...getPinnedMeals(state) };
+
+  if (pinnedMeals[day] && !mealMeetsDayPlan(pinnedMeals[day], next)) {
+    delete pinnedMeals[day];
+  }
 
   return {
     ...state,
@@ -167,6 +206,7 @@ export function setDayType(state, day, type) {
       ...state.weekPlan,
       [day]: next,
     },
+    pinnedMeals,
   };
 }
 
@@ -180,15 +220,43 @@ export function setDayRequirement(state, day, requirement, enabled) {
     return state;
   }
 
+  const nextDayPlan = {
+    ...state.weekPlan[day],
+    [requirement]: Boolean(enabled),
+  };
+  const pinnedMeals = { ...getPinnedMeals(state) };
+
+  if (pinnedMeals[day] && !mealMeetsDayPlan(pinnedMeals[day], nextDayPlan)) {
+    delete pinnedMeals[day];
+  }
+
   return {
     ...state,
     weekPlan: {
       ...state.weekPlan,
-      [day]: {
-        ...state.weekPlan[day],
-        [requirement]: Boolean(enabled),
-      },
+      [day]: nextDayPlan,
     },
+    pinnedMeals,
+  };
+}
+
+export function setPinnedMeal(state, day, meal) {
+  if (state.mode !== "setup" || !DAYS.includes(day) || !isMealDayType(state.weekPlan[day]?.type)) {
+    return state;
+  }
+
+  const pinnedMeals = { ...getPinnedMeals(state) };
+
+  if (meal == null) {
+    delete pinnedMeals[day];
+  } else {
+    if (!hasStableMealId(meal) || !mealMeetsDayPlan(meal, state.weekPlan[day])) return state;
+    pinnedMeals[day] = { ...meal };
+  }
+
+  return {
+    ...state,
+    pinnedMeals,
   };
 }
 
@@ -201,12 +269,13 @@ function splitMealsByRequirement(meals) {
   };
 }
 
-function getRequirementDayCounts(weekPlan) {
+function getRequirementDayCounts(weekPlan, excludedDays = new Set()) {
   let both = 0;
   let quickOnly = 0;
   let bigOnly = 0;
 
   for (const day of DAYS) {
+    if (excludedDays.has(day)) continue;
     const plan = weekPlan[day];
     if (!isMealDayType(plan.type)) continue;
     if (plan.quick && plan.bigMeal) both += 1;
@@ -217,9 +286,34 @@ function getRequirementDayCounts(weekPlan) {
   return { both, quickOnly, bigOnly };
 }
 
+function getOpenMealContext(meals, weekPlan) {
+  const pinnedDays = new Set();
+  const openMeals = [];
+
+  for (const meal of meals) {
+    if (typeof meal.pinnedDay === "string") {
+      if (
+        pinnedDays.has(meal.pinnedDay) ||
+        !DAYS.includes(meal.pinnedDay) ||
+        !mealMeetsDayPlan(meal, weekPlan[meal.pinnedDay])
+      ) {
+        return { valid: false, pinnedDays, openMeals };
+      }
+      pinnedDays.add(meal.pinnedDay);
+    } else {
+      openMeals.push(meal);
+    }
+  }
+
+  return { valid: true, pinnedDays, openMeals };
+}
+
 function requirementShortfallForMeals(meals, weekPlan) {
-  const requirements = getRequirementDayCounts(weekPlan);
-  const available = splitMealsByRequirement(meals);
+  const context = getOpenMealContext(meals, weekPlan);
+  if (!context.valid) return Number.POSITIVE_INFINITY;
+
+  const requirements = getRequirementDayCounts(weekPlan, context.pinnedDays);
+  const available = splitMealsByRequirement(context.openMeals);
   const missingBoth = Math.max(0, requirements.both - available.both.length);
   const remainingBoth = Math.max(0, available.both.length - requirements.both);
   const quickDeficit = Math.max(0, requirements.quickOnly - available.quickOnly.length);
@@ -238,19 +332,36 @@ function createDayAssignments(candidates, rejectedIds, weekPlan) {
 
   const assignments = {};
   const usedIds = new Set();
+  const pinnedDays = new Set();
+
+  for (const meal of selected) {
+    if (typeof meal.pinnedDay !== "string") continue;
+    if (
+      pinnedDays.has(meal.pinnedDay) ||
+      !DAYS.includes(meal.pinnedDay) ||
+      !mealMeetsDayPlan(meal, weekPlan[meal.pinnedDay])
+    ) {
+      return {};
+    }
+    assignments[meal.id] = meal.pinnedDay;
+    usedIds.add(meal.id);
+    pinnedDays.add(meal.pinnedDay);
+  }
+
   const bothDays = DAYS.filter(
-    (day) => isMealDayType(weekPlan[day].type) && weekPlan[day].quick && weekPlan[day].bigMeal,
+    (day) => !pinnedDays.has(day) && isMealDayType(weekPlan[day].type) && weekPlan[day].quick && weekPlan[day].bigMeal,
   );
   const quickDays = DAYS.filter(
-    (day) => isMealDayType(weekPlan[day].type) && weekPlan[day].quick && !weekPlan[day].bigMeal,
+    (day) => !pinnedDays.has(day) && isMealDayType(weekPlan[day].type) && weekPlan[day].quick && !weekPlan[day].bigMeal,
   );
   const bigDays = DAYS.filter(
-    (day) => isMealDayType(weekPlan[day].type) && !weekPlan[day].quick && weekPlan[day].bigMeal,
+    (day) => !pinnedDays.has(day) && isMealDayType(weekPlan[day].type) && !weekPlan[day].quick && weekPlan[day].bigMeal,
   );
   const normalDays = DAYS.filter(
-    (day) => isMealDayType(weekPlan[day].type) && !weekPlan[day].quick && !weekPlan[day].bigMeal,
+    (day) => !pinnedDays.has(day) && isMealDayType(weekPlan[day].type) && !weekPlan[day].quick && !weekPlan[day].bigMeal,
   );
-  const { quickOnly, bigOnly, both } = splitMealsByRequirement(selected);
+  const unassignedMeals = selected.filter((candidate) => !usedIds.has(candidate.id));
+  const { quickOnly, bigOnly, both } = splitMealsByRequirement(unassignedMeals);
   const remainingBoth = [...both];
 
   for (const day of bothDays) {
@@ -289,6 +400,7 @@ export function createMenuState(
   weekPlan,
   createdAt = new Date().toISOString(),
   deferredCarryovers = [],
+  pinnedMeals = {},
 ) {
   if (!Array.isArray(suggestions)) {
     throw new Error("Suggestions must be an array.");
@@ -310,6 +422,10 @@ export function createMenuState(
     throw new Error("Week plan is invalid.");
   }
 
+  if (!isValidPinnedMeals(pinnedMeals, weekPlan)) {
+    throw new Error("Pinned meals must match their planned dinner days.");
+  }
+
   const targetMealCount = countMealDays(weekPlan);
   if (suggestions.length < targetMealCount) {
     throw new Error("Suggestions cannot be fewer than the planned meal days.");
@@ -325,9 +441,8 @@ export function createMenuState(
     mode: targetMealCount === 0 ? "scheduled" : "choosing",
     createdAt,
     weekPlan: cloneWeekPlan(weekPlan),
-    pendingCarryovers: targetMealCount === 0
-      ? deferredCarryovers.map((meal) => ({ ...meal }))
-      : [],
+    pinnedMeals: clonePinnedMeals(pinnedMeals),
+    pendingCarryovers: deferredCarryovers.map((meal) => ({ ...meal })),
     candidates,
     rejectedIds: [],
     carryoverIds: [],
@@ -335,8 +450,11 @@ export function createMenuState(
   };
 
   if (targetMealCount > 0 && getRequiredRejectionCount(state) === 0 && getMealRequirementShortfall(state) === 0) {
-    state.mode = "scheduled";
-    state.dayAssignments = createDayAssignments(candidates, [], weekPlan);
+    const assignments = createDayAssignments(candidates, [], weekPlan);
+    if (Object.keys(assignments).length === targetMealCount) {
+      state.mode = "scheduled";
+      state.dayAssignments = assignments;
+    }
   }
 
   return state;
@@ -351,21 +469,39 @@ export function getRequiredRejectionCount(state) {
   return Math.max(0, state.candidates.length - countMealDays(state.weekPlan));
 }
 
+function getOpenSelectedMealContext(state) {
+  const context = getOpenMealContext(getSelectedMeals(state), state.weekPlan);
+  return context.valid ? context : { pinnedDays: new Set(), openMeals: [] };
+}
+
 export function getQuickMealShortfall(state) {
-  const quickNeeded = countQuickMealDays(state.weekPlan);
-  const selectedQuick = getSelectedMeals(state).filter((candidate) => candidate.quick === true).length;
+  const { pinnedDays, openMeals } = getOpenSelectedMealContext(state);
+  const quickNeeded = DAYS.filter(
+    (day) => !pinnedDays.has(day) && isMealDayType(state.weekPlan[day].type) && state.weekPlan[day].quick,
+  ).length;
+  const selectedQuick = openMeals.filter((candidate) => candidate.quick === true).length;
   return Math.max(0, quickNeeded - selectedQuick);
 }
 
 export function getBigMealShortfall(state) {
-  const bigNeeded = countBigMealDays(state.weekPlan);
-  const selectedBig = getSelectedMeals(state).filter((candidate) => candidate.bigMeal === true).length;
+  const { pinnedDays, openMeals } = getOpenSelectedMealContext(state);
+  const bigNeeded = DAYS.filter(
+    (day) => !pinnedDays.has(day) && isMealDayType(state.weekPlan[day].type) && state.weekPlan[day].bigMeal,
+  ).length;
+  const selectedBig = openMeals.filter((candidate) => candidate.bigMeal === true).length;
   return Math.max(0, bigNeeded - selectedBig);
 }
 
 export function getCombinedMealShortfall(state) {
-  const bothNeeded = countCombinedMealDays(state.weekPlan);
-  const selectedBoth = getSelectedMeals(state).filter(
+  const { pinnedDays, openMeals } = getOpenSelectedMealContext(state);
+  const bothNeeded = DAYS.filter(
+    (day) =>
+      !pinnedDays.has(day) &&
+      isMealDayType(state.weekPlan[day].type) &&
+      state.weekPlan[day].quick &&
+      state.weekPlan[day].bigMeal,
+  ).length;
+  const selectedBoth = openMeals.filter(
     (candidate) => candidate.quick === true && candidate.bigMeal === true,
   ).length;
   return Math.max(0, bothNeeded - selectedBoth);
@@ -387,18 +523,27 @@ function finalizeIfReady(state) {
     };
   }
 
+  const assignments = createDayAssignments(state.candidates, state.rejectedIds, state.weekPlan);
+  if (Object.keys(assignments).length !== getSelectedMeals(state).length) {
+    return {
+      ...state,
+      mode: "choosing",
+      dayAssignments: {},
+    };
+  }
+
   return {
     ...state,
     mode: "scheduled",
-    dayAssignments: createDayAssignments(state.candidates, state.rejectedIds, state.weekPlan),
+    dayAssignments: assignments,
   };
 }
 
 export function toggleRejection(state, candidateIdValue) {
   if (state.mode !== "choosing") return state;
 
-  const candidateExists = state.candidates.some((candidate) => candidate.id === candidateIdValue);
-  if (!candidateExists) return state;
+  const candidate = state.candidates.find((item) => item.id === candidateIdValue);
+  if (!candidate) return state;
 
   const rejected = new Set(state.rejectedIds);
   const carryovers = new Set(state.carryoverIds);
@@ -406,6 +551,7 @@ export function toggleRejection(state, candidateIdValue) {
   if (rejected.has(candidateIdValue)) {
     rejected.delete(candidateIdValue);
   } else {
+    if (typeof candidate.pinnedDay === "string") return state;
     if (rejected.size >= getRequiredRejectionCount(state)) return state;
     rejected.add(candidateIdValue);
     carryovers.delete(candidateIdValue);
@@ -453,13 +599,6 @@ export function getCarryoverMeals(state) {
 export function getEatenMeals(state) {
   const carryovers = new Set(state.carryoverIds);
   return getSelectedMeals(state).filter((candidate) => !carryovers.has(candidate.id));
-}
-
-function mealMeetsDayPlan(meal, dayPlan) {
-  if (!meal || !isMealDayType(dayPlan.type)) return false;
-  if (dayPlan.quick && meal.quick !== true) return false;
-  if (dayPlan.bigMeal && meal.bigMeal !== true) return false;
-  return true;
 }
 
 function assignmentsMeetRequirements(state, assignments) {
@@ -557,7 +696,26 @@ export function reopenWeekSetup(state) {
     return true;
   });
 
-  return createPlanningState(uniqueCarryovers, state.weekPlan, state.createdAt);
+  return createPlanningState(
+    uniqueCarryovers,
+    state.weekPlan,
+    state.createdAt,
+    getPinnedMeals(state),
+  );
+}
+
+function pinsMatchCandidates(value) {
+  const pins = getPinnedMeals(value);
+  const pinnedCandidates = value.candidates.filter((candidate) => typeof candidate.pinnedDay === "string");
+  const pinEntries = Object.entries(pins);
+
+  if (pinnedCandidates.length !== pinEntries.length) return false;
+
+  return pinEntries.every(([day, meal]) =>
+    pinnedCandidates.some(
+      (candidate) => candidate.pinnedDay === day && candidate.stableId === meal.stableId,
+    ),
+  );
 }
 
 export function isValidMenuState(value) {
@@ -567,6 +725,7 @@ export function isValidMenuState(value) {
     !VALID_MODES.has(value.mode) ||
     typeof value.createdAt !== "string" ||
     !isValidWeekPlan(value.weekPlan) ||
+    !isValidPinnedMeals(value.pinnedMeals, value.weekPlan) ||
     !Array.isArray(value.pendingCarryovers) ||
     !Array.isArray(value.candidates) ||
     !Array.isArray(value.rejectedIds) ||
@@ -597,12 +756,16 @@ export function isValidMenuState(value) {
     return false;
   }
 
+  if (!pinsMatchCandidates(value)) return false;
+
   const candidateIds = new Set(value.candidates.map((candidate) => candidate.id));
   if (candidateIds.size !== value.candidates.length) return false;
 
+  const candidateById = new Map(value.candidates.map((candidate) => [candidate.id, candidate]));
   const requiredRejections = getRequiredRejectionCount(value);
   if (
     !value.rejectedIds.every((id) => candidateIds.has(id)) ||
+    value.rejectedIds.some((id) => typeof candidateById.get(id)?.pinnedDay === "string") ||
     value.rejectedIds.length > requiredRejections
   ) {
     return false;
