@@ -22,7 +22,7 @@ import {
   DEFAULT_LIST_NAME,
   getStoredActiveList,
   setStoredActiveList,
-} from "./list-config.js?v=0.13.0";
+} from "./list-config.js?v=0.14.0";
 
 const loginPanel = document.querySelector("#login-panel");
 const adminPanel = document.querySelector("#admin-panel");
@@ -97,6 +97,10 @@ function setStatus(element, message, isError = false) {
   element.classList.toggle("is-error", isError);
 }
 
+function normalizeEmail(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 function setListRequiredVisibility(hasList) {
   for (const section of listRequiredSections) section.hidden = !hasList;
 }
@@ -153,7 +157,7 @@ function renderListControls() {
     option.textContent = owned ? list.name : `${list.name} (shared)`;
     option.dataset.listName = list.name;
     option.dataset.ownerUid = list.ownerUid ?? "";
-    option.dataset.editorUids = JSON.stringify(Array.isArray(list.editorUids) ? list.editorUids : []);
+    option.dataset.editorEmails = JSON.stringify(Array.isArray(list.editorEmails) ? list.editorEmails : []);
     option.selected = list.id === activeListId;
     listSelect.append(option);
   }
@@ -183,16 +187,19 @@ function clearCatalogUi() {
 
 async function loadAccessibleLists(user, preferredId = null) {
   const ownedQuery = query(collection(db, "lists"), where("ownerUid", "==", user.uid));
-  const sharedQuery = query(collection(db, "lists"), where("editorUids", "array-contains", user.uid));
   const ownedSnapshot = await getDocs(ownedQuery);
 
   let sharedSnapshot = null;
-  try {
-    sharedSnapshot = await getDocs(sharedQuery);
-  } catch (error) {
-    // During a rules deployment there can be a brief window where the new shared
-    // query is not authorized yet. Owned lists should remain usable meanwhile.
-    console.warn("Could not load shared meal lists yet.", error);
+  const verifiedEmail = user.emailVerified ? normalizeEmail(user.email) : "";
+  if (verifiedEmail) {
+    const sharedQuery = query(collection(db, "lists"), where("editorEmails", "array-contains", verifiedEmail));
+    try {
+      sharedSnapshot = await getDocs(sharedQuery);
+    } catch (error) {
+      // During a rules deployment there can be a brief window where the new shared
+      // query is not authorized yet. Owned lists should remain usable meanwhile.
+      console.warn("Could not load shared meal lists yet.", error);
+    }
   }
 
   const byId = new Map();
@@ -204,7 +211,7 @@ async function loadAccessibleLists(user, preferredId = null) {
   availableLists = [...byId.values()]
     .map((list) => ({
       ...list,
-      editorUids: Array.isArray(list.editorUids) ? list.editorUids : [],
+      editorEmails: Array.isArray(list.editorEmails) ? list.editorEmails.map(normalizeEmail).filter(Boolean) : [],
     }))
     .sort((a, b) => {
       const ownerOrder = Number(!isOwnedByCurrentUser(a)) - Number(!isOwnedByCurrentUser(b));
@@ -230,7 +237,12 @@ async function loadAccessibleLists(user, preferredId = null) {
     resetMealForm();
   } else {
     clearCatalogUi();
-    setStatus(listStatus, "You do not own or share any meal lists yet. Create one below, or give another list owner your UID.");
+    setStatus(
+      listStatus,
+      user.emailVerified
+        ? "You do not own or share any meal lists yet. Create one below, or ask another list owner to add your email address."
+        : "You do not own any meal lists yet. Verify your email before shared household lists can appear, or create your own list below.",
+    );
   }
 }
 
@@ -559,7 +571,7 @@ createListForm.addEventListener("submit", async (event) => {
     const listRef = await addDoc(collection(db, "lists"), {
       name,
       ownerUid: user.uid,
-      editorUids: [],
+      editorEmails: [],
       publicRead: false,
       schemaVersion: 1,
       createdAt: serverTimestamp(),
@@ -608,7 +620,7 @@ duplicateListForm.addEventListener("submit", async (event) => {
     const listRef = await addDoc(collection(db, "lists"), {
       name,
       ownerUid: user.uid,
-      editorUids: [],
+      editorEmails: [],
       publicRead: false,
       schemaVersion: Number(source.schemaVersion) || 1,
       createdAt: serverTimestamp(),
