@@ -176,6 +176,7 @@ export function createPlanningState(
     mode: "setup",
     createdAt,
     setupPreviousMealCount: null,
+    setupNotice: "",
     weekPlan: cloneWeekPlan(weekPlan),
     pinnedMeals: clonePinnedMeals(pinnedMeals),
     pendingCarryovers: carryoverMeals.map((meal) => ({ ...meal })),
@@ -196,10 +197,14 @@ export function setDayType(state, day, type) {
     ? { type, quick: current.quick === true, bigMeal: current.bigMeal === true }
     : createDayPlan(type);
   const pinnedMeals = { ...getPinnedMeals(state) };
+  let setupNotice = state.setupNotice ?? "";
   let candidates = state.candidates;
   if (pinnedMeals[day] && !mealMeetsDayPlan(pinnedMeals[day], next)) {
     const pinnedMeal = pinnedMeals[day];
     delete pinnedMeals[day];
+    setupNotice = candidates.length > 0
+      ? `The manually set meal for ${day} no longer fits and was unpinned. It remains in your choices.`
+      : `The manually set meal for ${day} no longer fits and was unpinned. It will remain available as a carryover choice.`;
     const alreadyCandidate = candidates.some((candidate) => candidate.stableId === pinnedMeal.stableId);
     if (!alreadyCandidate && candidates.length > 0) {
       candidates = [...candidates, { ...pinnedMeal, id: candidateId(pinnedMeal, candidates.length) }];
@@ -221,6 +226,7 @@ export function setDayType(state, day, type) {
     },
     pinnedMeals,
     candidates,
+    setupNotice,
   };
 }
 
@@ -239,10 +245,14 @@ export function setDayRequirement(state, day, requirement, enabled) {
     [requirement]: Boolean(enabled),
   };
   const pinnedMeals = { ...getPinnedMeals(state) };
+  let setupNotice = state.setupNotice ?? "";
 
   if (pinnedMeals[day] && !mealMeetsDayPlan(pinnedMeals[day], nextDayPlan)) {
     const pinnedMeal = pinnedMeals[day];
     delete pinnedMeals[day];
+    setupNotice = state.candidates.length > 0
+      ? `The manually set meal for ${day} no longer fits and was unpinned. It remains in your choices.`
+      : `The manually set meal for ${day} no longer fits and was unpinned. It will remain available as a carryover choice.`;
     if (!state.candidates.some((candidate) => candidate.stableId === pinnedMeal.stableId)) {
       if (state.candidates.length > 0) {
         state = { ...state, candidates: [...state.candidates, { ...pinnedMeal, id: candidateId(pinnedMeal, state.candidates.length) }] };
@@ -266,6 +276,7 @@ export function setDayRequirement(state, day, requirement, enabled) {
     },
     pinnedMeals,
     candidates,
+    setupNotice,
   };
 }
 
@@ -470,6 +481,7 @@ export function createMenuState(
     mode: targetMealCount === 0 ? "scheduled" : "choosing",
     createdAt,
     setupPreviousMealCount: null,
+    setupNotice: "",
     weekPlan: cloneWeekPlan(weekPlan),
     pinnedMeals: clonePinnedMeals(pinnedMeals),
     pendingCarryovers: deferredCarryovers.map((meal) => ({ ...meal })),
@@ -724,6 +736,7 @@ export function reopenWeekSetup(state) {
     ...state,
     mode: "setup",
     setupPreviousMealCount: countMealDays(state.weekPlan),
+    setupNotice: "",
     candidates,
     pinnedMeals,
     dayAssignments: {},
@@ -744,6 +757,7 @@ export function resumeWeekSetup(state, additionalSuggestions = []) {
     ...state,
     mode: target === 0 ? "scheduled" : "choosing",
     setupPreviousMealCount: null,
+    setupNotice: "",
     candidates,
     rejectedIds: state.rejectedIds.filter((id) => candidates.some((candidate) => candidate.id === id)),
     carryoverIds: state.carryoverIds.filter((id) => candidates.some((candidate) => candidate.id === id)),
@@ -787,6 +801,7 @@ export function isValidMenuState(value) {
   }
 
   if (value.setupPreviousMealCount !== undefined && value.setupPreviousMealCount !== null && (!Number.isInteger(value.setupPreviousMealCount) || value.setupPreviousMealCount < 0)) return false;
+  if (value.setupNotice !== undefined && typeof value.setupNotice !== "string") return false;
 
   if (
     !value.pendingCarryovers.every(hasStableMealId) ||
@@ -854,4 +869,5 @@ export function isValidMenuState(value) {
     assignmentsMeetRequirements(value, value.dayAssignments)
   );
 }
+
 

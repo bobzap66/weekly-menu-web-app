@@ -1,11 +1,11 @@
-import { generateMenu } from "./generator.js?v=0.23.0";
+import { generateMenu } from "./generator.js?v=0.24.0";
 import {
   DEFAULT_EXTRA_CHOICES,
   DAYS,
   countMealDays,
   isMealDayType,
   isValidWeekPlan,
-} from "./state.js?v=0.23.0";
+} from "./state.js?v=0.24.0";
 
 function carryoverSuggestion(meal) {
   return {

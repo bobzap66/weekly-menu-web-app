@@ -1,10 +1,11 @@
 {
   "name": "weekly-menu-web-app",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test"
   }
 }
+
 

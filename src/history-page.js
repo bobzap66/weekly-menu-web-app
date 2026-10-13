@@ -8,7 +8,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 import { auth, db } from "./firebase.js";
-import { getStoredActiveList } from "./list-config.js?v=0.23.0";
+import { getStoredActiveList } from "./list-config.js?v=0.24.0";
 
 const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const signedOutCard = document.querySelector("#signed-out-card");

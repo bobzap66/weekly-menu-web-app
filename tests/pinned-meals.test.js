@@ -60,6 +60,8 @@ test("setup can pin a saved meal and clears it if later requirements make it inc
 
   state = setDayRequirement(state, "Tuesday", "quick", true);
   assert.equal("Tuesday" in state.pinnedMeals, false);
+  assert.equal(state.pendingCarryovers.some((meal) => meal.stableId === "meal-1"), true);
+  assert.match(state.setupNotice, /no longer fits and was unpinned/);
 });
 
 test("generation keeps a pinned meal fixed and rolls only the remaining dinners plus extras", () => {
@@ -165,3 +167,4 @@ test("replacing a scheduled pinned meal updates the remembered setup pin", () =>
   assert.equal(next.candidates[0].pinnedDay, "Monday");
   assert.equal(next.pinnedMeals.Monday.stableId, "meal-9");
 });
+

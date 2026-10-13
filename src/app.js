@@ -1,9 +1,9 @@
-import { menuData } from "./data.js?v=0.23.0";
+import { menuData } from "./data.js?v=0.24.0";
 import {
   addWeekToHistory,
   createHistory,
   isValidHistory,
-} from "./history.js?v=0.23.0";
+} from "./history.js?v=0.24.0";
 import {
   DAYS,
   DAY_TYPE_LABELS,
@@ -34,18 +34,18 @@ import {
   setPinnedMeal,
   toggleCarryover,
   toggleRejection,
-} from "./state.js?v=0.23.0";
-import { generateMenu } from "./generator.js?v=0.23.0";
-import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.23.0";
-import { getPlannerStorageKeys } from "./planner-storage.js?v=0.23.0";
+} from "./state.js?v=0.24.0";
+import { generateMenu } from "./generator.js?v=0.24.0";
+import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.24.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.24.0";
 import {
   CLOUD_PLANNER_SCHEMA_VERSION,
   canUseCloudPlanner,
   loadCloudPlanner,
   saveCloudPlanner,
   subscribeCloudPlanner,
-} from "./planner-sync.js?v=0.23.0";
-import { buildNextWeekSuggestions } from "./week.js?v=0.23.0";
+} from "./planner-sync.js?v=0.24.0";
+import { buildNextWeekSuggestions } from "./week.js?v=0.24.0";
 
 const activeListId = document.documentElement.dataset.activeListId;
 const activeListName = document.documentElement.dataset.activeListName || "Meal List";
@@ -548,7 +548,8 @@ function renderSetup() {
     ? ` ${carryoverCount} ${plural(carryoverCount, "carryover")} will be included automatically.`
     : "";
   const newIdeaSummary = nothingNew ? " New ideas are turned off for this week." : "";
-  selectionStatus.textContent = `${mealSummary}${pinnedSummary}${carryoverSummary}${newIdeaSummary}`;
+  const setupNotice = typeof state.setupNotice === "string" && state.setupNotice ? ` ${state.setupNotice}` : "";
+  selectionStatus.textContent = `${mealSummary}${pinnedSummary}${carryoverSummary}${newIdeaSummary}${setupNotice}`;
 
   menuList.className = "week-setup-list";
   fragment.append(createNothingNewControl());
@@ -926,4 +927,5 @@ window.addEventListener("beforeunload", () => {
   if (cloudSaveTimer) window.clearTimeout(cloudSaveTimer);
   if (unsubscribeCloudPlanner) unsubscribeCloudPlanner();
 });
+
 

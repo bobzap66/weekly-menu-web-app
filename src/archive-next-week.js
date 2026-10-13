@@ -1,5 +1,5 @@
-import { getPlannerStorageKeys } from "./planner-storage.js?v=0.23.0";
-import { archiveScheduledWeek } from "./week-archive.js?v=0.23.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.24.0";
+import { archiveScheduledWeek } from "./week-archive.js?v=0.24.0";
 
 const primaryButton = document.querySelector("#primary-button");
 const selectionStatus = document.querySelector("#selection-status");

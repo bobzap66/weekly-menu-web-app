@@ -22,7 +22,7 @@ import {
   DEFAULT_LIST_NAME,
   getStoredActiveList,
   setStoredActiveList,
-} from "./list-config.js?v=0.23.0";
+} from "./list-config.js?v=0.24.0";
 
 const loginPanel = document.querySelector("#login-panel");
 const adminPanel = document.querySelector("#admin-panel");
