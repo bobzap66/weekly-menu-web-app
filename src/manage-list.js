@@ -22,7 +22,7 @@ import {
   DEFAULT_LIST_NAME,
   getStoredActiveList,
   setStoredActiveList,
-} from "./list-config.js?v=0.25.0";
+} from "./list-config.js?v=0.26.0";
 
 const loginPanel = document.querySelector("#login-panel");
 const adminPanel = document.querySelector("#admin-panel");
@@ -805,4 +805,5 @@ onAuthStateChanged(auth, async (user) => {
     setStatus(listStatus, "Could not load your meal lists. Check the Firestore security rules.", true);
   }
 });
+
 

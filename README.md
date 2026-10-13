@@ -2,7 +2,7 @@
 
 A static GitHub Pages dinner planner with Firebase-backed meal lists and household planning.
 
-## Version 0.25.0 behavior
+## Version 0.26.0 behavior
 
 - Keeps the application on GitHub Pages with no custom application server and no Cloud Functions.
 - Runs on the Firebase Spark plan using browser-side Firebase Authentication and Cloud Firestore.
@@ -16,6 +16,7 @@ A static GitHub Pages dinner planner with Firebase-backed meal lists and househo
 - Syncs week setup, pinned meals, generated candidates, scheduled dinners, manual meal replacements, carryovers, meal recency history, and the **Nothing new** preference through Firestore.
 - Lets a dinner day be pinned to an exact saved meal before generation, then generates only the remaining dinner choices around those fixed meals.
 - Lets any scheduled dinner be replaced manually with an exact saved meal from the active list while preserving Quick and Big Meal / Guests requirements.
+- Lets users search meals in the same picker used to choose a replacement or pin, with filtered results grouped by category.
 - Keeps browser-local planner storage as a cache and fallback if cloud planner access is unavailable.
 - Keeps signed-out planning browser-local even for the public **Family Dinners** catalog; the household planner itself is never public.
 - Protects the public **Family Dinners** default list from deletion.
@@ -218,6 +219,7 @@ npm test
 ```
 
 No package installation is required for the existing pure-JavaScript unit tests.
+
 
 
 

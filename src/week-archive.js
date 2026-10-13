@@ -5,7 +5,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 import { auth, db } from "./firebase.js";
-import { buildWeekArchive, weekArchiveDocumentId } from "./week-archive-model.js?v=0.25.0";
+import { buildWeekArchive, weekArchiveDocumentId } from "./week-archive-model.js?v=0.26.0";
 
 export async function archiveScheduledWeek(listId, state) {
   const user = auth.currentUser;
@@ -37,4 +37,5 @@ export async function archiveScheduledWeek(listId, state) {
 
   return { archived: created, id: archiveId };
 }
+
 

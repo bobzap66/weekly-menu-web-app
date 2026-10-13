@@ -1,9 +1,9 @@
-import { menuData } from "./data.js?v=0.25.0";
+import { menuData } from "./data.js?v=0.26.0";
 import {
   addWeekToHistory,
   createHistory,
   isValidHistory,
-} from "./history.js?v=0.25.0";
+} from "./history.js?v=0.26.0";
 import {
   DAYS,
   DAY_TYPE_LABELS,
@@ -35,18 +35,18 @@ import {
   toggleCarryover,
   toggleKeepOnReroll,
   toggleRejection,
-} from "./state.js?v=0.25.0";
-import { generateMenu } from "./generator.js?v=0.25.0";
-import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.25.0";
-import { getPlannerStorageKeys } from "./planner-storage.js?v=0.25.0";
+} from "./state.js?v=0.26.0";
+import { generateMenu } from "./generator.js?v=0.26.0";
+import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.26.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.26.0";
 import {
   CLOUD_PLANNER_SCHEMA_VERSION,
   canUseCloudPlanner,
   loadCloudPlanner,
   saveCloudPlanner,
   subscribeCloudPlanner,
-} from "./planner-sync.js?v=0.25.0";
-import { buildNextWeekSuggestions } from "./week.js?v=0.25.0";
+} from "./planner-sync.js?v=0.26.0";
+import { buildNextWeekSuggestions } from "./week.js?v=0.26.0";
 
 const activeListId = document.documentElement.dataset.activeListId;
 const activeListName = document.documentElement.dataset.activeListName || "Meal List";
@@ -954,6 +954,7 @@ window.addEventListener("beforeunload", () => {
   if (cloudSaveTimer) window.clearTimeout(cloudSaveTimer);
   if (unsubscribeCloudPlanner) unsubscribeCloudPlanner();
 });
+
 
 
 
