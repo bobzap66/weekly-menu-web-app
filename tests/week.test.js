@@ -41,6 +41,29 @@ test("a five-dinner week generates eight candidates", () => {
   assert.equal(suggestions.every((item) => typeof item.stableId === "string"), true);
 });
 
+test("reroll generation retains marked meals and replaces only the remaining pool", () => {
+  const kept = {
+    stableId: "kept-mexican-tacos",
+    categoryId: "mexican",
+    categoryName: "Mexican",
+    mealName: "Family Tacos",
+    quick: true,
+    bigMeal: false,
+  };
+  const suggestions = buildNextWeekSuggestions(
+    menuData,
+    createHistory(),
+    [],
+    fiveDinnerPlan(),
+    () => 0.42,
+    { preservedCandidates: [kept] },
+  );
+
+  assert.equal(suggestions.length, 8);
+  assert.equal(suggestions.some((meal) => meal.stableId === kept.stableId), true);
+  assert.equal(suggestions.filter((meal) => meal.categoryId === kept.categoryId).length, 1);
+});
+
 test("carries uneaten meals into a variable candidate pool", () => {
   const carryovers = [
     {
@@ -158,3 +181,4 @@ test("carryovers without stable IDs are rejected", () => {
     /stable IDs/,
   );
 });
+

@@ -1,9 +1,9 @@
-import { menuData } from "./data.js?v=0.24.0";
+import { menuData } from "./data.js?v=0.25.0";
 import {
   addWeekToHistory,
   createHistory,
   isValidHistory,
-} from "./history.js?v=0.24.0";
+} from "./history.js?v=0.25.0";
 import {
   DAYS,
   DAY_TYPE_LABELS,
@@ -33,19 +33,20 @@ import {
   setDayType,
   setPinnedMeal,
   toggleCarryover,
+  toggleKeepOnReroll,
   toggleRejection,
-} from "./state.js?v=0.24.0";
-import { generateMenu } from "./generator.js?v=0.24.0";
-import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.24.0";
-import { getPlannerStorageKeys } from "./planner-storage.js?v=0.24.0";
+} from "./state.js?v=0.25.0";
+import { generateMenu } from "./generator.js?v=0.25.0";
+import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.25.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.25.0";
 import {
   CLOUD_PLANNER_SCHEMA_VERSION,
   canUseCloudPlanner,
   loadCloudPlanner,
   saveCloudPlanner,
   subscribeCloudPlanner,
-} from "./planner-sync.js?v=0.24.0";
-import { buildNextWeekSuggestions } from "./week.js?v=0.24.0";
+} from "./planner-sync.js?v=0.25.0";
+import { buildNextWeekSuggestions } from "./week.js?v=0.25.0";
 
 const activeListId = document.documentElement.dataset.activeListId;
 const activeListName = document.documentElement.dataset.activeListName || "Meal List";
@@ -287,13 +288,16 @@ function beginPlannedWeek() {
 function rerollIdeas() {
   const pinnedMeals = currentPinnedMeals();
   const carryovers = currentCarryoverCandidates();
+  const preservedCandidates = state.candidates.filter((candidate) =>
+    state.keepOnRerollIds?.includes(candidate.id),
+  );
   const suggestions = buildNextWeekSuggestions(
     menuData,
     history,
     carryovers,
     state.weekPlan,
     Math.random,
-    { nothingNew, pinnedMeals },
+    { nothingNew, pinnedMeals, preservedCandidates },
   );
 
   state = createMenuState(
@@ -612,6 +616,7 @@ function renderCandidates() {
   const requirementShortfall = getMealRequirementShortfall(state);
   const carryoverCount = currentCarryoverCandidates().length;
   const pinnedCount = state.candidates.filter((candidate) => typeof candidate.pinnedDay === "string").length;
+  const keepCount = (state.keepOnRerollIds ?? []).length;
 
   stepLabel.textContent = "This week’s candidates";
   menuHeading.textContent = `Choose ${mealCount} ${plural(mealCount, "dinner")}`;
@@ -632,9 +637,12 @@ function renderCandidates() {
     const carryoverSummary = carryoverCount > 0
       ? ` ${carryoverCount} ${plural(carryoverCount, "dinner")} carried over automatically.`
       : "";
+    const keepSummary = keepCount > 0
+      ? ` ${keepCount} ${plural(keepCount, "meal")} will be kept if you reroll.`
+      : "";
     selectionStatus.textContent = remaining > 0
-      ? `Remove ${remaining} more ${plural(remaining, "meal")}.${requirementSummary}${pinnedSummary}${carryoverSummary}`
-      : `Your selections are ready.${requirementSummary}${pinnedSummary}${carryoverSummary}`;
+      ? `Remove ${remaining} more ${plural(remaining, "meal")}.${requirementSummary}${pinnedSummary}${carryoverSummary}${keepSummary}`
+      : `Your selections are ready.${requirementSummary}${pinnedSummary}${carryoverSummary}${keepSummary}`;
   }
 
   for (const candidate of state.candidates) {
@@ -677,11 +685,30 @@ function renderCandidates() {
     }
 
     item.append(choice);
+
+    if (!isPinned && !isCarriedOver && !isRejected) {
+      const keepLabel = document.createElement("label");
+      const keepCheckbox = document.createElement("input");
+      const keepText = document.createElement("span");
+      keepLabel.className = "keep-on-reroll-control";
+      keepCheckbox.type = "checkbox";
+      keepCheckbox.checked = (state.keepOnRerollIds ?? []).includes(candidate.id);
+      keepCheckbox.setAttribute("aria-label", `Keep ${candidate.mealName} if rerolling ideas`);
+      keepText.textContent = "Keep if rerolling";
+      keepCheckbox.addEventListener("change", () => {
+        state = toggleKeepOnReroll(state, candidate.id);
+        saveState();
+        render();
+      });
+      keepLabel.append(keepCheckbox, keepText);
+      item.append(keepLabel);
+    }
+
     fragment.append(item);
   }
 
   menuList.replaceChildren(fragment);
-  primaryButton.textContent = carryoverCount > 0 || pinnedCount > 0 ? "Reroll other ideas" : "Roll new ideas";
+  primaryButton.textContent = carryoverCount > 0 || pinnedCount > 0 || keepCount > 0 ? "Reroll other ideas" : "Roll new ideas";
   secondaryButton.textContent = "Clear removals";
   secondaryButton.hidden = rejectedCount === 0;
   tertiaryButton.textContent = "Edit week setup";
@@ -927,5 +954,6 @@ window.addEventListener("beforeunload", () => {
   if (cloudSaveTimer) window.clearTimeout(cloudSaveTimer);
   if (unsubscribeCloudPlanner) unsubscribeCloudPlanner();
 });
+
 
 

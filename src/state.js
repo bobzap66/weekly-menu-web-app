@@ -182,6 +182,7 @@ export function createPlanningState(
     pendingCarryovers: carryoverMeals.map((meal) => ({ ...meal })),
     candidates: [],
     rejectedIds: [],
+    keepOnRerollIds: [],
     carryoverIds: [],
     dayAssignments: {},
   };
@@ -487,6 +488,7 @@ export function createMenuState(
     pendingCarryovers: deferredCarryovers.map((meal) => ({ ...meal })),
     candidates,
     rejectedIds: [],
+    keepOnRerollIds: [],
     carryoverIds: [],
     dayAssignments: {},
   };
@@ -588,6 +590,7 @@ export function toggleRejection(state, candidateIdValue) {
   if (!candidate) return state;
 
   const rejected = new Set(state.rejectedIds);
+  const keepOnReroll = new Set(state.keepOnRerollIds ?? []);
   const carryovers = new Set(state.carryoverIds);
 
   if (rejected.has(candidateIdValue)) {
@@ -596,14 +599,34 @@ export function toggleRejection(state, candidateIdValue) {
     if (typeof candidate.pinnedDay === "string") return state;
     if (rejected.size >= getRequiredRejectionCount(state)) return state;
     rejected.add(candidateIdValue);
+    keepOnReroll.delete(candidateIdValue);
     carryovers.delete(candidateIdValue);
   }
 
   return finalizeIfReady({
     ...state,
     rejectedIds: [...rejected],
+    keepOnRerollIds: [...keepOnReroll],
     carryoverIds: [...carryovers],
   });
+}
+
+export function toggleKeepOnReroll(state, candidateIdValue) {
+  if (state.mode !== "choosing") return state;
+  const candidate = state.candidates.find((item) => item.id === candidateIdValue);
+  if (
+    !candidate ||
+    state.rejectedIds.includes(candidateIdValue) ||
+    typeof candidate.pinnedDay === "string" ||
+    candidate.carriedOver === true ||
+    state.carryoverIds.includes(candidateIdValue)
+  ) return state;
+
+  const keepOnReroll = new Set(state.keepOnRerollIds ?? []);
+  if (keepOnReroll.has(candidateIdValue)) keepOnReroll.delete(candidateIdValue);
+  else keepOnReroll.add(candidateIdValue);
+
+  return { ...state, keepOnRerollIds: [...keepOnReroll] };
 }
 
 export function clearRejections(state) {
@@ -793,6 +816,7 @@ export function isValidMenuState(value) {
     !Array.isArray(value.pendingCarryovers) ||
     !Array.isArray(value.candidates) ||
     !Array.isArray(value.rejectedIds) ||
+    (value.keepOnRerollIds !== undefined && !Array.isArray(value.keepOnRerollIds)) ||
     !Array.isArray(value.carryoverIds) ||
     !value.dayAssignments ||
     typeof value.dayAssignments !== "object"
@@ -817,8 +841,10 @@ export function isValidMenuState(value) {
     if (value.candidates.length > 0 && !pinsMatchCandidates(value)) return false;
     const candidateIds = new Set(value.candidates.map((candidate) => candidate.id));
     const rejected = new Set(value.rejectedIds);
+    const keepOnRerollIds = value.keepOnRerollIds ?? [];
     return value.rejectedIds.every((id) => candidateIds.has(id) && typeof value.candidates.find((candidate) => candidate.id === id)?.pinnedDay !== "string")
       && value.rejectedIds.length <= getRequiredRejectionCount(value)
+      && keepOnRerollIds.every((id) => candidateIds.has(id) && !rejected.has(id))
       && value.carryoverIds.every((id) => candidateIds.has(id) && !rejected.has(id));
   }
 
@@ -830,6 +856,7 @@ export function isValidMenuState(value) {
 
   const candidateIds = new Set(value.candidates.map((candidate) => candidate.id));
   if (candidateIds.size !== value.candidates.length) return false;
+  const keepOnRerollIds = value.keepOnRerollIds ?? [];
 
   const candidateById = new Map(value.candidates.map((candidate) => [candidate.id, candidate]));
   const requiredRejections = getRequiredRejectionCount(value);
@@ -843,6 +870,7 @@ export function isValidMenuState(value) {
 
   const rejected = new Set(value.rejectedIds);
   if (!value.carryoverIds.every((id) => candidateIds.has(id) && !rejected.has(id))) return false;
+  if (!keepOnRerollIds.every((id) => candidateIds.has(id) && !rejected.has(id))) return false;
 
   if (value.mode === "choosing") {
     return Object.keys(value.dayAssignments).length === 0;
@@ -869,5 +897,6 @@ export function isValidMenuState(value) {
     assignmentsMeetRequirements(value, value.dayAssignments)
   );
 }
+
 
 

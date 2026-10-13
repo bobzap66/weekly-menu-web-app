@@ -12,8 +12,8 @@ import {
   DEFAULT_LIST_ID,
   DEFAULT_LIST_NAME,
   setStoredActiveList,
-} from "./list-config.js?v=0.24.0";
-import { getPlannerStorageKeys } from "./planner-storage.js?v=0.24.0";
+} from "./list-config.js?v=0.25.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.25.0";
 
 const DELETE_BATCH_SIZE = 400;
 
@@ -178,3 +178,4 @@ deleteListForm.addEventListener("submit", async (event) => {
 
 onAuthStateChanged(auth, refreshDeleteControls);
 refreshDeleteControls();
+

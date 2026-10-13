@@ -1,11 +1,11 @@
-import { generateMenu } from "./generator.js?v=0.24.0";
+import { generateMenu } from "./generator.js?v=0.25.0";
 import {
   DEFAULT_EXTRA_CHOICES,
   DAYS,
   countMealDays,
   isMealDayType,
   isValidWeekPlan,
-} from "./state.js?v=0.24.0";
+} from "./state.js?v=0.25.0";
 
 function carryoverSuggestion(meal) {
   return {
@@ -144,6 +144,16 @@ export function buildNextWeekSuggestions(
   const carryovers = carryoverMeals
     .filter((meal) => !pinnedStableIds.has(meal.stableId))
     .map(carryoverSuggestion);
+  const existingStableIds = new Set([...pinnedStableIds, ...carryoverStableIds]);
+  const preserved = (Array.isArray(options.preservedCandidates) ? options.preservedCandidates : [])
+    .filter((meal) => typeof meal?.stableId === "string" && !existingStableIds.has(meal.stableId))
+    .map((meal) => {
+      const suggestion = { ...meal };
+      delete suggestion.id;
+      delete suggestion.pinnedDay;
+      delete suggestion.carriedOver;
+      return suggestion;
+    });
   const openMealCount = targetMealCount - pinned.length;
 
   if (openMealCount < 0) {
@@ -152,8 +162,9 @@ export function buildNextWeekSuggestions(
 
   if (openMealCount === 0) return pinned;
 
+  const preservedCandidates = [...carryovers, ...preserved];
   const { bothRemaining, quickRemaining, bigRemaining } = remainingRequirementsAfterCarryovers(
-    carryovers,
+    preservedCandidates,
     weekPlan,
     pinnedDays,
   );
@@ -161,16 +172,17 @@ export function buildNextWeekSuggestions(
   const requiredGenerated = bothRemaining + quickRemaining + bigRemaining;
   const minimumGenerated = Math.max(
     requiredGenerated,
-    openMealCount - carryovers.length,
+    openMealCount - preservedCandidates.length,
     0,
   );
   const desiredGenerated = Math.max(
     minimumGenerated,
-    openMealCount + DEFAULT_EXTRA_CHOICES - carryovers.length,
+    openMealCount + DEFAULT_EXTRA_CHOICES - preservedCandidates.length,
   );
   const excludedCategoryIds = new Set([
     ...pinned.map((meal) => meal.categoryId),
     ...carryovers.map((meal) => meal.categoryId),
+    ...preserved.map((meal) => meal.categoryId),
   ]);
   const availableCategoryCount = countAvailableCategories(menuData, excludedCategoryIds);
   const generatedCount = Math.min(desiredGenerated, availableCategoryCount);
@@ -188,5 +200,6 @@ export function buildNextWeekSuggestions(
     allowNew: options.nothingNew !== true,
   });
 
-  return [...pinned, ...carryovers, ...generated];
+  return [...pinned, ...carryovers, ...preserved, ...generated];
 }
+

@@ -204,6 +204,24 @@
   background: transparent;
 }
 
+.keep-on-reroll-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  margin: 0.65rem 0 0 0.8rem;
+  color: #655e52;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.keep-on-reroll-control input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 @media (max-width: 640px) {
   .day-plan-controls {
     align-items: stretch;
@@ -387,3 +405,4 @@
     line-height: 1.25;
   }
 }
+

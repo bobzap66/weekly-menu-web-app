@@ -30,6 +30,7 @@ import {
   setDayRequirement,
   setDayType,
   toggleCarryover,
+  toggleKeepOnReroll,
   toggleRejection,
 } from "../src/state.js";
 
@@ -103,6 +104,29 @@ test("a five-dinner week finalizes after three cuts", () => {
   assert.equal(getScheduledWeek(state).length, 7);
   assert.equal(getScheduledWeek(state).find((entry) => entry.day === "Saturday").type, DAY_TYPES.LEFTOVERS);
   assert.equal(getScheduledWeek(state).find((entry) => entry.day === "Sunday").type, DAY_TYPES.EATING_OUT);
+});
+
+test("marking a meal to keep on reroll toggles and rejecting it clears the mark", () => {
+  let state = createMenuState(makeSuggestions(8), createWeekPlan());
+  const candidateId = state.candidates[0].id;
+  state = toggleKeepOnReroll(state, candidateId);
+  assert.deepEqual(state.keepOnRerollIds, [candidateId]);
+  state = toggleRejection(state, candidateId);
+  assert.deepEqual(state.keepOnRerollIds, []);
+});
+
+test("pinned, rejected, and carryover candidates cannot be marked to keep on reroll", () => {
+  let state = createMenuState(makeSuggestions(8), createWeekPlan());
+  const candidateId = state.candidates[0].id;
+  state = { ...state, rejectedIds: [candidateId] };
+  assert.equal(toggleKeepOnReroll(state, candidateId), state);
+  state = { ...state, rejectedIds: [], carryoverIds: [candidateId] };
+  assert.equal(toggleKeepOnReroll(state, candidateId), state);
+  const pinnedState = createMenuState(
+    [{ ...makeSuggestions(1)[0], pinnedDay: "Monday" }, ...makeSuggestions(7).slice(1)],
+    createWeekPlan(),
+  );
+  assert.equal(toggleKeepOnReroll(pinnedState, pinnedState.candidates[0].id), pinnedState);
 });
 
 test("a day checked quick and big requires one meal carrying both tags", () => {
@@ -321,4 +345,5 @@ test("validates a scheduled seven-day plan", () => {
   assert.equal(isValidMenuState({ ...state, carryoverIds: ["missing"] }), false);
   assert.equal(isValidMenuState({ ...state, version: STATE_VERSION - 1 }), false);
 });
+
 

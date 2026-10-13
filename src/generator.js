@@ -1,4 +1,4 @@
-import { getHistoryWeightMultiplier } from "./history.js?v=0.24.0";
+import { getHistoryWeightMultiplier } from "./history.js?v=0.25.0";
 
 const NEW_RECIPE_CHANCE = 0.10;
 const NEW_CATEGORY_CHANCE = 0.05;
@@ -212,3 +212,4 @@ export function generateMenu(menuData, rng = Math.random, history = null, option
 
   return suggestions;
 }
+

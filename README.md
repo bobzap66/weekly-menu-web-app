@@ -2,7 +2,7 @@
 
 A static GitHub Pages dinner planner with Firebase-backed meal lists and household planning.
 
-## Version 0.24.0 behavior
+## Version 0.25.0 behavior
 
 - Keeps the application on GitHub Pages with no custom application server and no Cloud Functions.
 - Runs on the Firebase Spark plan using browser-side Firebase Authentication and Cloud Firestore.
@@ -218,5 +218,6 @@ npm test
 ```
 
 No package installation is required for the existing pure-JavaScript unit tests.
+
 
 
