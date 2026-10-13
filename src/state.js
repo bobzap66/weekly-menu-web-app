@@ -175,6 +175,7 @@ export function createPlanningState(
     version: STATE_VERSION,
     mode: "setup",
     createdAt,
+    setupPreviousMealCount: null,
     weekPlan: cloneWeekPlan(weekPlan),
     pinnedMeals: clonePinnedMeals(pinnedMeals),
     pendingCarryovers: carryoverMeals.map((meal) => ({ ...meal })),
@@ -195,10 +196,22 @@ export function setDayType(state, day, type) {
     ? { type, quick: current.quick === true, bigMeal: current.bigMeal === true }
     : createDayPlan(type);
   const pinnedMeals = { ...getPinnedMeals(state) };
-
+  let candidates = state.candidates;
   if (pinnedMeals[day] && !mealMeetsDayPlan(pinnedMeals[day], next)) {
+    const pinnedMeal = pinnedMeals[day];
     delete pinnedMeals[day];
+    const alreadyCandidate = candidates.some((candidate) => candidate.stableId === pinnedMeal.stableId);
+    if (!alreadyCandidate && candidates.length > 0) {
+      candidates = [...candidates, { ...pinnedMeal, id: candidateId(pinnedMeal, candidates.length) }];
+    } else if (!alreadyCandidate) {
+      state = { ...state, pendingCarryovers: [...state.pendingCarryovers, pinnedMeal] };
+    }
   }
+  candidates = candidates.map((candidate) =>
+    candidate.pinnedDay === day && !mealMeetsDayPlan(candidate, next)
+      ? Object.fromEntries(Object.entries(candidate).filter(([key]) => key !== "pinnedDay"))
+      : candidate,
+  );
 
   return {
     ...state,
@@ -207,6 +220,7 @@ export function setDayType(state, day, type) {
       [day]: next,
     },
     pinnedMeals,
+    candidates,
   };
 }
 
@@ -227,8 +241,22 @@ export function setDayRequirement(state, day, requirement, enabled) {
   const pinnedMeals = { ...getPinnedMeals(state) };
 
   if (pinnedMeals[day] && !mealMeetsDayPlan(pinnedMeals[day], nextDayPlan)) {
+    const pinnedMeal = pinnedMeals[day];
     delete pinnedMeals[day];
+    if (!state.candidates.some((candidate) => candidate.stableId === pinnedMeal.stableId)) {
+      if (state.candidates.length > 0) {
+        state = { ...state, candidates: [...state.candidates, { ...pinnedMeal, id: candidateId(pinnedMeal, state.candidates.length) }] };
+      } else {
+        state = { ...state, pendingCarryovers: [...state.pendingCarryovers, pinnedMeal] };
+      }
+    }
   }
+
+  const candidates = state.candidates.map((candidate) =>
+    candidate.pinnedDay === day && !mealMeetsDayPlan(candidate, nextDayPlan)
+      ? Object.fromEntries(Object.entries(candidate).filter(([key]) => key !== "pinnedDay"))
+      : candidate,
+  );
 
   return {
     ...state,
@@ -237,6 +265,7 @@ export function setDayRequirement(state, day, requirement, enabled) {
       [day]: nextDayPlan,
     },
     pinnedMeals,
+    candidates,
   };
 }
 
@@ -440,6 +469,7 @@ export function createMenuState(
     version: STATE_VERSION,
     mode: targetMealCount === 0 ? "scheduled" : "choosing",
     createdAt,
+    setupPreviousMealCount: null,
     weekPlan: cloneWeekPlan(weekPlan),
     pinnedMeals: clonePinnedMeals(pinnedMeals),
     pendingCarryovers: deferredCarryovers.map((meal) => ({ ...meal })),
@@ -679,29 +709,49 @@ export function reopenChoices(state) {
 export function reopenWeekSetup(state) {
   if (state.mode === "setup") return state;
 
-  const rejected = new Set(state.rejectedIds);
-  const marked = new Set(state.carryoverIds);
-  const carryovers = [
-    ...state.pendingCarryovers,
-    ...state.candidates.filter(
-      (candidate) =>
-        !rejected.has(candidate.id) &&
-        (candidate.carriedOver === true || marked.has(candidate.id)),
-    ),
-  ];
-  const seen = new Set();
-  const uniqueCarryovers = carryovers.filter((meal) => {
-    if (seen.has(meal.stableId)) return false;
-    seen.add(meal.stableId);
-    return true;
+  const candidates = state.candidates.map((candidate) => {
+    const day = state.dayAssignments[candidate.id];
+    return day ? { ...candidate, pinnedDay: day } : { ...candidate };
   });
+  const pinnedMeals = { ...getPinnedMeals(state) };
+  for (const candidate of candidates) {
+    if (candidate.pinnedDay) {
+      pinnedMeals[candidate.pinnedDay] = candidate;
+    }
+  }
 
-  return createPlanningState(
-    uniqueCarryovers,
-    state.weekPlan,
-    state.createdAt,
-    getPinnedMeals(state),
-  );
+  return {
+    ...state,
+    mode: "setup",
+    setupPreviousMealCount: countMealDays(state.weekPlan),
+    candidates,
+    pinnedMeals,
+    dayAssignments: {},
+  };
+}
+
+export function resumeWeekSetup(state, additionalSuggestions = []) {
+  if (state.mode !== "setup" || !Array.isArray(additionalSuggestions)) return state;
+  const startIndex = state.candidates.length;
+  const additions = additionalSuggestions.map((suggestion, index) => ({
+    ...suggestion,
+    id: candidateId(suggestion, startIndex + index),
+  }));
+  const candidates = [...state.candidates, ...additions];
+  const target = countMealDays(state.weekPlan);
+  if (candidates.length < target) throw new Error("Additional dinner choices are needed to fill the edited week.");
+  const next = {
+    ...state,
+    mode: target === 0 ? "scheduled" : "choosing",
+    setupPreviousMealCount: null,
+    candidates,
+    rejectedIds: state.rejectedIds.filter((id) => candidates.some((candidate) => candidate.id === id)),
+    carryoverIds: state.carryoverIds.filter((id) => candidates.some((candidate) => candidate.id === id)),
+    dayAssignments: {},
+  };
+  const excessRejections = Math.max(0, next.rejectedIds.length - getRequiredRejectionCount(next));
+  if (excessRejections) next.rejectedIds = next.rejectedIds.slice(0, -excessRejections);
+  return target === 0 ? next : finalizeIfReady(next);
 }
 
 function pinsMatchCandidates(value) {
@@ -736,6 +786,8 @@ export function isValidMenuState(value) {
     return false;
   }
 
+  if (value.setupPreviousMealCount !== undefined && value.setupPreviousMealCount !== null && (!Number.isInteger(value.setupPreviousMealCount) || value.setupPreviousMealCount < 0)) return false;
+
   if (
     !value.pendingCarryovers.every(hasStableMealId) ||
     !value.candidates.every(hasStableMealId)
@@ -744,12 +796,15 @@ export function isValidMenuState(value) {
   }
 
   if (value.mode === "setup") {
-    return (
-      value.candidates.length === 0 &&
-      value.rejectedIds.length === 0 &&
-      value.carryoverIds.length === 0 &&
-      Object.keys(value.dayAssignments).length === 0
-    );
+    if (Object.keys(value.dayAssignments).length !== 0) return false;
+    if (!value.candidates.every((candidate) => typeof candidate.id === "string" && candidate.id.length > 0)) return false;
+    if (new Set(value.candidates.map((candidate) => candidate.id)).size !== value.candidates.length) return false;
+    if (value.candidates.length > 0 && !pinsMatchCandidates(value)) return false;
+    const candidateIds = new Set(value.candidates.map((candidate) => candidate.id));
+    const rejected = new Set(value.rejectedIds);
+    return value.rejectedIds.every((id) => candidateIds.has(id) && typeof value.candidates.find((candidate) => candidate.id === id)?.pinnedDay !== "string")
+      && value.rejectedIds.length <= getRequiredRejectionCount(value)
+      && value.carryoverIds.every((id) => candidateIds.has(id) && !rejected.has(id));
   }
 
   if (!value.candidates.every((candidate) => typeof candidate.id === "string" && candidate.id.length > 0)) {
@@ -799,3 +854,4 @@ export function isValidMenuState(value) {
     assignmentsMeetRequirements(value, value.dayAssignments)
   );
 }
+

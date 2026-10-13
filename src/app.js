@@ -1,9 +1,9 @@
-import { menuData } from "./data.js?v=0.17.0";
+import { menuData } from "./data.js?v=0.23.0";
 import {
   addWeekToHistory,
   createHistory,
   isValidHistory,
-} from "./history.js?v=0.17.0";
+} from "./history.js?v=0.23.0";
 import {
   DAYS,
   DAY_TYPE_LABELS,
@@ -28,22 +28,24 @@ import {
   isValidMenuState,
   reopenChoices,
   reopenWeekSetup,
+  resumeWeekSetup,
   setDayRequirement,
   setDayType,
   setPinnedMeal,
   toggleCarryover,
   toggleRejection,
-} from "./state.js?v=0.17.0";
-import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.17.0";
-import { getPlannerStorageKeys } from "./planner-storage.js?v=0.17.0";
+} from "./state.js?v=0.23.0";
+import { generateMenu } from "./generator.js?v=0.23.0";
+import { getManualMealGroups, replaceScheduledMeal } from "./manual-meals.js?v=0.23.0";
+import { getPlannerStorageKeys } from "./planner-storage.js?v=0.23.0";
 import {
   CLOUD_PLANNER_SCHEMA_VERSION,
   canUseCloudPlanner,
   loadCloudPlanner,
   saveCloudPlanner,
   subscribeCloudPlanner,
-} from "./planner-sync.js?v=0.17.0";
-import { buildNextWeekSuggestions } from "./week.js?v=0.17.0";
+} from "./planner-sync.js?v=0.23.0";
+import { buildNextWeekSuggestions } from "./week.js?v=0.23.0";
 
 const activeListId = document.documentElement.dataset.activeListId;
 const activeListName = document.documentElement.dataset.activeListName || "Meal List";
@@ -218,6 +220,43 @@ function currentCarryoverCandidates() {
 }
 
 function beginPlannedWeek() {
+  if (Number.isInteger(state.setupPreviousMealCount)) {
+    const mealCount = countMealDays(state.weekPlan);
+    const candidates = state.candidates;
+    const bothCount = candidates.filter((meal) => meal.quick === true && meal.bigMeal === true).length;
+    const quickOnlyCount = candidates.filter((meal) => meal.quick === true && meal.bigMeal !== true).length;
+    const bigOnlyCount = candidates.filter((meal) => meal.quick !== true && meal.bigMeal === true).length;
+    const requiredBoth = countCombinedMealDays(state.weekPlan);
+    const requiredQuickOnly = countQuickMealDays(state.weekPlan) - requiredBoth;
+    const requiredBigOnly = countBigMealDays(state.weekPlan) - requiredBoth;
+    const minimumBothCount = Math.max(0, requiredBoth - bothCount);
+    let availableBoth = Math.max(0, bothCount - requiredBoth);
+    const minimumQuickCount = Math.max(0, requiredQuickOnly - quickOnlyCount - availableBoth);
+    availableBoth = Math.max(0, availableBoth - Math.max(0, requiredQuickOnly - quickOnlyCount));
+    const minimumBigMealCount = Math.max(0, requiredBigOnly - bigOnlyCount - availableBoth);
+    const dinnerSlotsAdded = Math.max(0, mealCount - state.setupPreviousMealCount);
+    const additionalCount = Math.max(dinnerSlotsAdded, minimumBothCount + minimumQuickCount + minimumBigMealCount);
+    const excludedCategoryIds = new Set([
+      ...candidates.map((meal) => meal.categoryId),
+      ...state.pendingCarryovers.map((meal) => meal.categoryId),
+    ]);
+    const additionalSuggestions = additionalCount > 0
+      ? generateMenu(menuData, Math.random, history, {
+        candidateCount: additionalCount,
+        excludeCategoryIds: [...excludedCategoryIds],
+        minimumBothCount,
+        minimumQuickCount,
+        minimumBigMealCount,
+        allowNew: !nothingNew,
+      })
+      : [];
+
+    state = resumeWeekSetup(state, additionalSuggestions);
+    saveState();
+    render();
+    return;
+  }
+
   const pinnedMeals = currentPinnedMeals();
   const mealCount = countMealDays(state.weekPlan);
   const pinnedCount = Object.keys(pinnedMeals).length;
@@ -526,7 +565,8 @@ function renderSetup() {
   }
 
   menuList.replaceChildren(fragment);
-  if (mealCount === 0) primaryButton.textContent = "Use this week structure";
+  if (Number.isInteger(state.setupPreviousMealCount)) primaryButton.textContent = state.candidates.length > 0 ? "Return to choices" : "Use this week structure";
+  else if (mealCount === 0) primaryButton.textContent = "Use this week structure";
   else if (pinnedCount === mealCount) primaryButton.textContent = "Use these meals";
   else if (pinnedCount > 0) primaryButton.textContent = "Generate remaining dinner ideas";
   else primaryButton.textContent = "Generate dinner ideas";
@@ -886,3 +926,4 @@ window.addEventListener("beforeunload", () => {
   if (cloudSaveTimer) window.clearTimeout(cloudSaveTimer);
   if (unsubscribeCloudPlanner) unsubscribeCloudPlanner();
 });
+

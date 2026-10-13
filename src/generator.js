@@ -1,4 +1,4 @@
-import { getHistoryWeightMultiplier } from "./history.js?v=0.11.0";
+import { getHistoryWeightMultiplier } from "./history.js?v=0.23.0";
 
 const NEW_RECIPE_CHANCE = 0.10;
 const NEW_CATEGORY_CHANCE = 0.05;

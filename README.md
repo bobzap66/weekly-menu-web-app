@@ -2,7 +2,7 @@
 
 A static GitHub Pages dinner planner with Firebase-backed meal lists and household planning.
 
-## Version 0.18.0 behavior
+## Version 0.23.0 behavior
 
 - Keeps the application on GitHub Pages with no custom application server and no Cloud Functions.
 - Runs on the Firebase Spark plan using browser-side Firebase Authentication and Cloud Firestore.
@@ -20,7 +20,7 @@ A static GitHub Pages dinner planner with Firebase-backed meal lists and househo
 - Keeps signed-out planning browser-local even for the public **Family Dinners** catalog; the household planner itself is never public.
 - Protects the public **Family Dinners** default list from deletion.
 - Uses `stableId` as the canonical meal identity throughout generation, carryovers, planner state, and history.
-- Supports **Edit week setup**, **Change choices**, carryovers, printing, and the week-level **Nothing new** option.
+- Supports **Edit week setup**, **Change choices**, carryovers, printing, and the week-level **Nothing new** option. Editing setup keeps generated choices, removals, carryover marks, and day-specific meals; adding dinner days or unmet Quick/Big Meal requirements generates only the additional candidates needed.
 - Deploys Firestore Security Rules automatically from GitHub Actions when the checked-in rules change.
 
 Each day has a base plan of **Dinner**, **Leftovers**, **Eating Out**, or **No Meal Planned**. Dinner days can independently require **Quick** and **Big Meal / Guests**; a day with both checked must receive a meal carrying both tags. During week setup, a Dinner day can also be fixed to a specific saved meal. The manual meal picker is filtered so an incompatible meal cannot be pinned to a Quick or Big Meal / Guests requirement.
@@ -218,3 +218,4 @@ npm test
 ```
 
 No package installation is required for the existing pure-JavaScript unit tests.
+

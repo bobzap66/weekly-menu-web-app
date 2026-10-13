@@ -26,6 +26,7 @@ import {
   isValidMenuState,
   reopenChoices,
   reopenWeekSetup,
+  resumeWeekSetup,
   setDayRequirement,
   setDayType,
   toggleCarryover,
@@ -216,7 +217,7 @@ test("reopening a scheduled menu returns to choosing", () => {
   assert.deepEqual(state.dayAssignments, {});
 });
 
-test("reopening week setup preserves carryovers but clears generated choices", () => {
+test("reopening week setup preserves choices, rejections, carryovers, and assigned days", () => {
   const suggestions = makeSuggestions(10);
   suggestions[0] = {
     ...suggestions[0],
@@ -228,15 +229,57 @@ test("reopening week setup preserves carryovers but clears generated choices", (
   state = finalize(state);
   const extraCarryover = getSelectedMeals(state)[1];
   state = toggleCarryover(state, extraCarryover.id);
+  const candidateIds = state.candidates.map((candidate) => candidate.id);
+  const rejectedIds = [...state.rejectedIds];
+  const assignments = { ...state.dayAssignments };
   state = reopenWeekSetup(state);
 
   assert.equal(state.mode, "setup");
-  assert.equal(state.candidates.length, 0);
-  assert.equal(state.rejectedIds.length, 0);
+  assert.equal(state.candidates.length, suggestions.length);
+  assert.deepEqual(state.candidates.map((candidate) => candidate.id), candidateIds);
+  assert.deepEqual(state.rejectedIds, rejectedIds);
+  assert.deepEqual(state.candidates.filter((candidate) => candidate.pinnedDay).map((candidate) => candidate.pinnedDay).sort(), Object.values(assignments).sort());
   assert.equal(Object.keys(state.dayAssignments).length, 0);
-  assert.equal(state.pendingCarryovers.length, 2);
-  assert.equal(state.pendingCarryovers.some((meal) => meal.stableId === suggestions[0].stableId), true);
-  assert.equal(state.pendingCarryovers.some((meal) => meal.stableId === extraCarryover.stableId), true);
+  assert.equal(state.pendingCarryovers.length, 0);
+  assert.equal(state.carryoverIds.includes(extraCarryover.id), true);
+  assert.equal(isValidMenuState(state), true);
+});
+
+test("editing a dinner day unpins its choice and returning keeps prior narrowing work", () => {
+  let state = createMenuState(makeSuggestions(10), fiveDinnerPlan());
+  state = finalize(state);
+  const preservedRejected = [...state.rejectedIds];
+  const changedDay = state.dayAssignments[state.candidates.find((candidate) => !state.rejectedIds.includes(candidate.id)).id];
+  state = reopenWeekSetup(state);
+  state = setDayType(state, changedDay, DAY_TYPES.EATING_OUT);
+
+  const unpinned = state.candidates.find((candidate) => candidate.pinnedDay !== undefined && candidate.pinnedDay === changedDay);
+  assert.equal(unpinned, undefined);
+  assert.equal(state.candidates.some((candidate) => candidate.pinnedDay === undefined && !preservedRejected.includes(candidate.id)), true);
+
+  state = resumeWeekSetup(state);
+  assert.equal(state.weekPlan[changedDay].type, DAY_TYPES.EATING_OUT);
+  assert.equal(state.candidates.length, 10);
+  assert.equal(state.rejectedIds.length, 5);
+  assert.equal(state.mode, "choosing");
+  assert.equal(isValidMenuState(state), true);
+});
+
+test("adding a dinner slot accepts only the incremental candidate and preserves removals", () => {
+  let state = createMenuState(makeSuggestions(10), fiveDinnerPlan());
+  state = finalize(state);
+  const rejected = [...state.rejectedIds];
+  state = reopenWeekSetup(state);
+  state = setDayType(state, "Saturday", DAY_TYPES.NORMAL);
+  const additional = { ...makeSuggestions(11)[10], stableId: "new-meal", categoryId: "new-category" };
+  state = resumeWeekSetup(state, [additional]);
+
+  assert.equal(state.candidates.length, 11);
+  assert.deepEqual(state.rejectedIds, rejected);
+  assert.equal(state.weekPlan.Saturday.type, DAY_TYPES.NORMAL);
+  assert.equal(getRequiredRejectionCount(state), 5);
+  assert.equal(state.mode, "scheduled");
+  assert.equal(Object.keys(state.dayAssignments).length, 6);
   assert.equal(isValidMenuState(state), true);
 });
 
@@ -278,3 +321,4 @@ test("validates a scheduled seven-day plan", () => {
   assert.equal(isValidMenuState({ ...state, carryoverIds: ["missing"] }), false);
   assert.equal(isValidMenuState({ ...state, version: STATE_VERSION - 1 }), false);
 });
+
