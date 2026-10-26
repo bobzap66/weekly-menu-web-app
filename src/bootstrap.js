@@ -1,4 +1,5 @@
 import { loadRemoteCatalog } from "./catalog.js?v=0.26.0";
+import { menuData } from "./data.js?v=0.26.0";
 import { auth } from "./firebase.js";
 import {
   DEFAULT_LIST_ID,
@@ -32,7 +33,7 @@ let activeList = user
 let catalogSource = "bundled";
 
 async function loadList(list) {
-  await loadRemoteCatalog(list.id);
+  await loadRemoteCatalog(menuData, list.id);
   activeList = list;
   catalogSource = "firestore-list";
 }
