@@ -268,10 +268,11 @@ async function switchToList(id) {
   );
 }
 
-async function copySnapshotDocuments(destinationListId, categorySnapshot, mealSnapshot) {
+async function copySnapshotDocuments(destinationListId, categorySnapshot, mealSnapshot, dessertSnapshot) {
   const writes = [
     ...categorySnapshot.docs.map((item) => ({ subcollection: "categories", item })),
     ...mealSnapshot.docs.map((item) => ({ subcollection: "meals", item })),
+    ...dessertSnapshot.docs.map((item) => ({ subcollection: "desserts", item })),
   ];
 
   for (let start = 0; start < writes.length; start += COPY_BATCH_SIZE) {
@@ -283,10 +284,11 @@ async function copySnapshotDocuments(destinationListId, categorySnapshot, mealSn
   }
 }
 
-async function removeSnapshotDocuments(destinationListId, categorySnapshot, mealSnapshot) {
+async function removeSnapshotDocuments(destinationListId, categorySnapshot, mealSnapshot, dessertSnapshot) {
   const writes = [
     ...categorySnapshot.docs.map((item) => ({ subcollection: "categories", id: item.id })),
     ...mealSnapshot.docs.map((item) => ({ subcollection: "meals", id: item.id })),
+    ...dessertSnapshot.docs.map((item) => ({ subcollection: "desserts", id: item.id })),
   ];
 
   for (let start = 0; start < writes.length; start += COPY_BATCH_SIZE) {
@@ -607,11 +609,12 @@ duplicateListForm.addEventListener("submit", async (event) => {
   let destinationListId = null;
   let sourceCategorySnapshot = null;
   let sourceMealSnapshot = null;
+  let sourceDessertSnapshot = null;
   duplicateListButton.disabled = true;
 
   try {
     setStatus(listStatus, `Reading ${source.name} before copying…`);
-    [sourceCategorySnapshot, sourceMealSnapshot] = await Promise.all([
+    [sourceCategorySnapshot, sourceMealSnapshot, sourceDessertSnapshot] = await Promise.all([
       getDocs(collection(db, "lists", source.id, "categories")),
       getDocs(collection(db, "lists", source.id, "meals")),
     ]);
@@ -627,18 +630,18 @@ duplicateListForm.addEventListener("submit", async (event) => {
     });
     destinationListId = listRef.id;
 
-    await copySnapshotDocuments(destinationListId, sourceCategorySnapshot, sourceMealSnapshot);
+    await copySnapshotDocuments(destinationListId, sourceCategorySnapshot, sourceMealSnapshot, sourceDessertSnapshot);
     await loadAccessibleLists(user, destinationListId);
     setStatus(
       listStatus,
-      `${name} created as your private copy of ${source.name}: ${sourceCategorySnapshot.size} categories and ${sourceMealSnapshot.size} meals copied.`,
+      `${name} created as your private copy of ${source.name}: ${sourceCategorySnapshot.size} categories, ${sourceMealSnapshot.size} meals, and ${sourceDessertSnapshot.size} desserts copied.`,
     );
   } catch (error) {
     console.error(error);
 
-    if (destinationListId && sourceCategorySnapshot && sourceMealSnapshot) {
+    if (destinationListId && sourceCategorySnapshot && sourceMealSnapshot && sourceDessertSnapshot) {
       try {
-        await removeSnapshotDocuments(destinationListId, sourceCategorySnapshot, sourceMealSnapshot);
+        await removeSnapshotDocuments(destinationListId, sourceCategorySnapshot, sourceMealSnapshot, sourceDessertSnapshot);
         await deleteDoc(doc(db, "lists", destinationListId));
       } catch (cleanupError) {
         console.error("Could not fully roll back the failed list copy.", cleanupError);
