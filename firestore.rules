@@ -63,6 +63,11 @@ service cloud.firestore {
         allow create, update, delete: if canEditList(listId);
       }
 
+      match /desserts/{dessertId} {
+        allow read: if canReadList(listId);
+        allow create, update, delete: if canEditList(listId);
+      }
+
       // The weekly household plan is private even when the meal catalog is public.
       // Owners and verified editors share one current state/history document.
       match /planner/{plannerId} {
