@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Roll three weighted dessert ideas and pick one." />
+  <title>Desserts — Weekly Menu</title>
+  <link rel="stylesheet" href="./styles.css?v=0.27.0" />
+  <link rel="stylesheet" href="./manage.css?v=0.27.0" />
+  <link rel="stylesheet" href="./desserts.css?v=0.27.0" />
+</head>
+<body>
+<main class="app-shell utility-shell dessert-shell">
+  <nav class="app-nav" aria-label="Primary navigation">
+    <a class="app-nav-brand" href="./">Weekly Menu</a>
+    <div class="app-nav-links">
+      <a class="app-nav-link" href="./">Planner</a>
+      <a class="app-nav-link is-active" href="./desserts.html" aria-current="page">Desserts</a>
+      <a class="app-nav-link" href="./history.html">History</a>
+      <a class="app-nav-link" href="./manage.html">Manage</a>
+    </div>
+  </nav>
+  <header class="hero utility-hero">
+    <p class="eyebrow">Sweet finish</p>
+    <h1>Dessert Roller</h1>
+    <p class="intro">Roll three choices from a separate weighted dessert list, then pick the one that sounds best.</p>
+    <p id="dessert-list-summary" class="hero-status">Loading dessert list…</p>
+  </header>
+
+  <section class="menu-card dessert-roll-card" aria-labelledby="dessert-roll-heading">
+    <div class="dessert-roll-heading">
+      <div><p class="step-label">Three choices</p><h2 id="dessert-roll-heading">What sounds good?</h2></div>
+      <button id="roll-dessert-button" class="action-button primary-button" type="button" disabled>Roll 3 desserts</button>
+    </div>
+    <p id="dessert-roll-status" class="selection-status" aria-live="polite">Add at least one active dessert to begin.</p>
+    <div id="dessert-options" class="dessert-options"></div>
+  </section>
+
+  <section id="dessert-editor-card" class="menu-card admin-card" aria-labelledby="dessert-editor-heading" hidden>
+    <div class="admin-section-heading"><div><p class="step-label">Dessert list</p><h2 id="dessert-editor-heading">Add or edit a dessert</h2></div></div>
+    <form id="dessert-form" class="admin-form dessert-form">
+      <input id="dessert-id" type="hidden" />
+      <label class="wide-field"><span>Dessert name</span><input id="dessert-name" type="text" maxlength="120" required /></label>
+      <label><span>Weight</span><input id="dessert-weight" type="number" min="0.01" step="0.01" value="1" required /></label>
+      <label class="wide-field"><span>Recipe link <small>(optional)</small></span><input id="dessert-recipe-url" type="url" placeholder="https://…" /></label>
+      <label class="wide-field"><span>Short description <small>(optional)</small></span><textarea id="dessert-description" maxlength="280" rows="3"></textarea></label>
+      <div class="checkbox-row wide-field"><label class="checkbox-label"><input id="dessert-active" type="checkbox" checked /> Active</label></div>
+      <div class="form-actions wide-field">
+        <button class="action-button primary-button" type="submit">Save dessert</button>
+        <button id="cancel-dessert-edit" class="action-button secondary-button" type="button" hidden>Cancel edit</button>
+      </div>
+    </form>
+    <p id="dessert-editor-status" class="admin-status" aria-live="polite"></p>
+  </section>
+
+  <section class="menu-card admin-card" aria-labelledby="dessert-catalog-heading">
+    <div class="admin-section-heading catalog-heading-row">
+      <div><p class="step-label">Dessert catalog</p><h2 id="dessert-catalog-heading">Browse desserts</h2></div>
+      <label class="search-field"><span>Search</span><input id="dessert-search" type="search" placeholder="Search desserts…" /></label>
+    </div>
+    <p id="dessert-status" class="selection-status" aria-live="polite"></p>
+    <div id="dessert-catalog" class="admin-meal-list"></div>
+  </section>
+</main>
+<script type="module" src="./src/desserts.js?v=0.27.0"></script>
+</body>
+</html>
