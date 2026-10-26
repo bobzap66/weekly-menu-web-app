@@ -3,7 +3,6 @@ import {
   getDocs,
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-import { menuData } from "./data.js";
 import { db } from "./firebase.js";
 import { DEFAULT_LIST_ID } from "./list-config.js";
 
@@ -39,7 +38,11 @@ function categoryFromDocument(docSnapshot) {
   };
 }
 
-export async function loadRemoteCatalog(listId = DEFAULT_LIST_ID) {
+export async function loadRemoteCatalog(menuData, listId = DEFAULT_LIST_ID) {
+  if (!Array.isArray(menuData?.categories)) {
+    throw new TypeError("A mutable menu catalog is required.");
+  }
+
   const [categorySnapshot, mealSnapshot] = await Promise.all([
     getDocs(collection(db, "lists", listId, "categories")),
     getDocs(collection(db, "lists", listId, "meals")),
