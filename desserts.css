@@ -1,0 +1,16 @@
+.dessert-shell { width: min(100% - 2rem, 68rem); }
+.dessert-roll-card { margin-bottom: 1rem; padding: clamp(1.5rem, 4vw, 2.5rem); }
+.dessert-roll-heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.dessert-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin-top:1.5rem; }
+.dessert-option { min-height:10rem; border:1px solid var(--line-strong); border-radius:1rem; padding:1.15rem; text-align:left; color:var(--ink); background:var(--paper); cursor:pointer; }
+.dessert-option:hover { border-color:var(--accent); transform:translateY(-2px); }
+.dessert-option.is-selected { border-color:var(--accent); background:var(--accent-soft); box-shadow:0 0 0 3px rgb(155 76 38 / 12%); }
+.dessert-option h3 { margin:0 0 .55rem; font-family:Georgia,"Times New Roman",serif; font-size:1.4rem; }
+.dessert-option p { margin:0; color:var(--muted); line-height:1.45; }
+.dessert-option .recipe-link { display:inline-block; margin-top:.75rem; }
+.dessert-form { border-top:1px solid var(--line); }
+@media (max-width:700px) {
+  .dessert-shell { width:min(100% - 1rem,68rem); }
+  .dessert-roll-heading { align-items:stretch; flex-direction:column; }
+  .dessert-options { grid-template-columns:1fr; }
+}
